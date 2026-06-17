@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Node / Frontend
+node_modules/
+dist/
+.next/
+.nuxt/
+*.local
+
+# Environment files — never commit
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/settings.json
+*.code-workspace
+
+# Docker volumes
+pgdata/
+redisdata/
+
+# Uploads / temp
+uploads/
+tmp/
+
+# SQLite (prototype only)
+*.sqlite
+*.sqlite3
+data/
