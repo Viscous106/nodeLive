@@ -39,6 +39,11 @@ Thumbs.db
 .vscode/settings.json
 *.code-workspace
 
+# Local agent / skill tooling (not project code)
+.agents/
+skills-lock.json
+.claude/
+
 # Docker volumes
 pgdata/
 redisdata/
