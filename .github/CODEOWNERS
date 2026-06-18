@@ -1,0 +1,26 @@
+# Code ownership → auto-requests review on matching paths.
+# Last matching pattern wins. Both owners review shared/foundation files.
+
+# Default: either owner can review.
+*                                   @OfficialAbhinavSingh @Viscous106
+
+# --- Shared foundation (both must be aware of changes) ---
+/.github/                           @OfficialAbhinavSingh @Viscous106
+/docs/                              @OfficialAbhinavSingh @Viscous106
+/backend/app/core/                  @OfficialAbhinavSingh @Viscous106
+/backend/app/db/                    @OfficialAbhinavSingh @Viscous106
+/backend/app/models/base.py         @OfficialAbhinavSingh @Viscous106
+/backend/alembic/                   @OfficialAbhinavSingh @Viscous106
+/frontend/src/lib/                  @OfficialAbhinavSingh @Viscous106
+/frontend/src/types/                @OfficialAbhinavSingh @Viscous106
+
+# --- Dev A: Dashboard + LMS core (feat/dashboard) ---
+/backend/app/auth/                  @OfficialAbhinavSingh
+/frontend/src/components/layout/     @OfficialAbhinavSingh
+/frontend/src/components/dashboard/  @OfficialAbhinavSingh
+/frontend/src/components/session/    @OfficialAbhinavSingh
+
+# --- Dev B: Live meeting + Zoom SDK (feat/live-meeting) ---
+/backend/app/realtime/              @Viscous106
+/backend/app/workers/               @Viscous106
+/frontend/src/components/live-meeting/  @Viscous106
