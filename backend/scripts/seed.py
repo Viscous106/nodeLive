@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from app.auth.security import hash_password
 from app.db.session import AsyncSessionLocal
-from app.models.course import ClassSession, Course, SessionStatus
+from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.user import User, UserRole
 
 _PASSWORD = "password123"
@@ -77,6 +77,10 @@ async def seed() -> None:
             for i in (1, 2, 3)
         ]
         db.add_all(sessions)
+        db.add_all(
+            Enrollment(user_id=u.id, course_id=course.id)
+            for u in (instructor, *students)
+        )
         await db.commit()
 
     print(
