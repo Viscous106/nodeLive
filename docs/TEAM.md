@@ -13,12 +13,11 @@
 
 ```
 main
-  └── feat/shared-foundation      ← Both devs do this together (Day 1, ~4 hrs)
-        ├── feat/dashboard         ← Dev A owns this (Days 1–3)
-        └── feat/live-meeting        ← Dev B owns this (Days 1–4)
+  ├── feat/dashboard       ← Dev A owns this (Days 1–3)
+  └── feat/live-meeting    ← Dev B owns this (Days 1–4)
 ```
 
-Both `feat/dashboard` and `feat/live-meeting` branch off `feat/shared-foundation` once shared setup is done.
+Both branches are off `main` and PR directly back into `main` when ready.
 
 ---
 
@@ -29,7 +28,7 @@ Both `feat/dashboard` and `feat/live-meeting` branch off `feat/shared-foundation
 - Backend: Auth routes (FastAPI), Course/Session CRUD routes, DB migrations (Alembic)
 - Design system: TopNav, SideDrawer, Right sidebar, all dashboard widgets
 
-**Branch from:** `feat/shared-foundation`  
+**Branch from:** `main`  
 **Branch name:** `feat/dashboard`  
 **Detail plan:** `docs/branch-A-dashboard.md`
 
@@ -42,15 +41,15 @@ Both `feat/dashboard` and `feat/live-meeting` branch off `feat/shared-foundation
 - Backend: Live class API routes, WebSocket (python-socketio) handlers, Zoom SDK JWT generation
 - Workers: Celery tasks (AI summary, caption buffer, quiz timers)
 
-**Branch from:** `feat/shared-foundation`  
+**Branch from:** `main`  
 **Branch name:** `feat/live-meeting`  
 **Detail plan:** `docs/branch-B-live-meeting.md`
 
 ---
 
-## Shared Foundation (Day 1 — Both devs together)
+## Day 1 Setup (Both devs together, ~4 hrs)
 
-Complete this before branching. Estimated: 3–4 hours.
+Do this on your own branches simultaneously — no separate shared branch needed.
 
 ### Frontend setup
 ```bash
@@ -63,7 +62,7 @@ npm install lucide-react zustand @tanstack/react-query socket.io-client react-ro
 npm install -D @types/node
 ```
 
-Shared files to create:
+Shared files to create (both devs create these identically, merge conflicts resolved by reviewer):
 - `frontend/src/lib/utils.ts` — cn() helper
 - `frontend/src/styles/globals.css` — CSS variables (from design-tokens.md)
 - `tailwind.config.ts` — full config (from design-tokens.md)
@@ -110,7 +109,6 @@ services:
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
-  # No pgbouncer needed locally — just use direct connection
 ```
 
 ### Environment files
@@ -123,10 +121,11 @@ frontend/.env.example  → VITE_API_URL, VITE_SOCKET_URL
 
 ## Merge Strategy
 
-1. Both devs PR into `feat/shared-foundation` (or `main` directly) when a feature is ready
+1. Both devs PR into `main` when a feature is ready
 2. PR must pass: `pytest` (backend) + `tsc --noEmit` (frontend) + `ruff check` (backend)
-3. Reviewer approves before merge
+3. Other dev reviews and approves before merge
 4. No direct pushes to `main` — always via PR
+5. **Dev A merges first** — Dev B pulls from main after auth is merged to avoid conflicts on shared files
 
 ## What NOT to build (out of scope for initial sprint)
 
