@@ -6,7 +6,9 @@
  * schemas. Change here = coordinate with both devs.
  */
 
-export type UserRole = 'student' | 'instructor' | 'admin'
+// Enum values are UPPERCASE to match the backend Pydantic schemas exactly
+// (UserRole / SessionStatus). Source of truth: backend/app/schemas.
+export type UserRole = 'STUDENT' | 'INSTRUCTOR' | 'ADMIN'
 
 export interface User {
   id: string
@@ -15,15 +17,13 @@ export interface User {
   role: UserRole
   avatarUrl: string | null
   coins: number
-  createdAt: string // ISO 8601
 }
 
-export type SessionStatus = 'scheduled' | 'live' | 'ended'
+export type SessionStatus = 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED'
 
 export interface Course {
   id: string
   title: string
-  description: string | null
 }
 
 export interface ClassSession {

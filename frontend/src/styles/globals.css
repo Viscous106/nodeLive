@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;500;600;700&display=swap');
+/* Inter is self-hosted via @fontsource-variable/inter (imported in main.tsx)
+   so it loads under the Zoom SDK's COEP: require-corp policy. */
 @import 'tailwindcss';
 @config '../../tailwind.config.ts';
 
 :root {
-  --font-sans: 'Source Sans Pro', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
 
   /* Brand */
   --color-primary: #2563eb;
@@ -45,4 +46,29 @@ body {
   background: var(--bg-page);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Quality floor: visible keyboard focus + respect reduced motion. */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Hide scrollbars on horizontal scroll rows (Continue Watching, etc.). */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

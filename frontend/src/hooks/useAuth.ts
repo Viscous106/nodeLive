@@ -1,0 +1,61 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+
+import { api } from '@/lib/api'
+import type { User } from '@/types'
+
+const ME_KEY = ['auth', 'me'] as const
+
+export interface LoginInput {
+  email: string
+  password: string
+}
+
+export interface SignupInput extends LoginInput {
+  displayName: string
+}
+
+/**
+ * Current-user state, sourced from `GET /api/auth/me`. A 401 (not logged in)
+ * surfaces as `user: null`, not an error to handle at the call site.
+ */
+export function useAuth() {
+  const { data, isLoading } = useQuery({
+    queryKey: ME_KEY,
+    queryFn: () => api.get<User>('/api/auth/me'),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  })
+  return {
+    user: data ?? null,
+    isLoading,
+    isAuthenticated: Boolean(data),
+  }
+}
+
+export function useLogin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: LoginInput) => api.post<User>('/api/auth/login', input),
+    onSuccess: (user) => qc.setQueryData(ME_KEY, user),
+  })
+}
+
+export function useSignup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: SignupInput) =>
+      api.post<User>('/api/auth/signup', input),
+    onSuccess: (user) => qc.setQueryData(ME_KEY, user),
+  })
+}
+
+export function useLogout() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<null>('/api/auth/logout'),
+    onSuccess: () => {
+      qc.setQueryData(ME_KEY, null)
+      qc.clear()
+    },
+  })
+}

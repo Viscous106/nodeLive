@@ -1,0 +1,79 @@
+import { Bell, ChevronDown, GraduationCap, LogOut, Menu } from 'lucide-react'
+import { Link } from 'react-router-dom'
+
+import { Avatar } from '@/components/ui/avatar'
+import { DropdownItem, DropdownMenu } from '@/components/ui/dropdown-menu'
+import { useAuth, useLogout } from '@/hooks/useAuth'
+import { useUiStore } from '@/stores/uiStore'
+
+export function TopNav() {
+  const openDrawer = useUiStore((s) => s.openDrawer)
+  const { user } = useAuth()
+  const logout = useLogout()
+
+  return (
+    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-card px-4 sm:px-page-x">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={openDrawer}
+          aria-label="Open menu"
+          className="rounded-btn p-2 text-text-secondary hover:bg-border-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <Link to="/dashboard" className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-white">
+            <GraduationCap className="h-5 w-5" />
+          </span>
+          <span className="text-lg font-bold text-text-primary">linkHQ</span>
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-2 sm:gap-4">
+        {user && (
+          <span className="hidden items-center gap-1.5 rounded-pill border border-gold-border px-3 py-1 text-sm font-semibold text-gold-border sm:inline-flex">
+            <span aria-hidden="true">●</span>
+            {user.coins}
+          </span>
+        )}
+        <button
+          type="button"
+          aria-label="Notifications"
+          className="rounded-full p-2 text-text-secondary hover:bg-border-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <Bell className="h-5 w-5" />
+        </button>
+
+        {user && (
+          <DropdownMenu
+            label="Account menu"
+            trigger={
+              <span className="flex items-center gap-2 rounded-pill py-1 pl-1 pr-2 hover:bg-border-muted">
+                <Avatar name={user.displayName} src={user.avatarUrl} />
+                <span className="hidden text-sm font-medium text-text-primary sm:inline">
+                  {user.displayName}
+                </span>
+                <ChevronDown className="h-4 w-4 text-text-muted" />
+              </span>
+            }
+          >
+            <div className="border-b border-border px-3 py-2">
+              <p className="truncate text-sm font-semibold text-text-primary">
+                {user.displayName}
+              </p>
+              <p className="truncate text-xs text-text-muted">{user.email}</p>
+            </div>
+            <DropdownItem
+              onClick={() => logout.mutate()}
+              className="text-danger hover:bg-danger/5"
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
+            </DropdownItem>
+          </DropdownMenu>
+        )}
+      </div>
+    </header>
+  )
+}

@@ -1,13 +1,13 @@
 import type { Config } from 'tailwindcss'
 
 // Design tokens — see docs/design-tokens.md. Scaler-inspired palette,
-// Source Sans Pro, 8px card radius. Loaded by globals.css via `@config`.
+// Inter, 8px card radius. Loaded by globals.css via `@config`.
 const config: Config = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Source Sans Pro"', 'system-ui', 'sans-serif'],
+        sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
         primary: { DEFAULT: '#2563EB', light: '#3B82F6', dark: '#1D4ED8' },
