@@ -18,7 +18,7 @@ watch-tracking). Shared seams are called out per milestone.
 | Milestone | plan.md phase | Status |
 |---|---|---|
 | M0 Auth + session contract | Phase 0 | ✅ done (PR #2) |
-| M1 App shell & design system | Phase 0 | |
+| M1 App shell & design system | Phase 0 | ✅ done (PR #3) |
 | M2 Dashboard page | Phase 0/3 | |
 | M3 Session detail | Phase 0/3 | |
 | M4 Frontend polish & hardening | Phase 1/2 support | |
@@ -39,14 +39,14 @@ watch-tracking). Shared seams are called out per milestone.
 
 **DoD:** ✅ contract frozen; Dev B unblocked.
 
-## M1 — App shell & design system · _Phase 0_
+## M1 — App shell & design system ✅ DONE (PR #3) · _Phase 0_
 
-- [ ] Tailwind tokens + Source Sans Pro; shadcn init (Button, Card, Badge, Skeleton, Dialog, Dropdown)
-- [ ] `TopNav`, `SideDrawer` (animated), `DashboardLayout` (content + right-sidebar slot)
-- [ ] `LoginPage` + `SignupPage` wired to `/api/auth`; Zustand `useAuth` + React Query
-- [ ] React Router + auth guard (`/` → dashboard if authed else login)
+- [x] Inter (self-hosted, COEP-safe) + Scaler tokens; shadcn-style primitives (Button, Input, Label, Card, Badge, Skeleton, Avatar, Spinner, Dropdown)
+- [x] `TopNav`, `SideDrawer` (animated), `DashboardLayout` (content + right-sidebar slot)
+- [x] `LoginPage` + `SignupPage` wired to `/api/auth`; `useAuth` (React Query); `uiStore` (Zustand)
+- [x] React Router v7 + auth guards (`/` → dashboard if authed else login)
 
-**DoD:** login → dashboard redirect works against the real backend; protected routes bounce anon users; `npm run build` green.
+**DoD:** ✅ login → dashboard verified against the live backend; guards bounce anon users; `npm run build` green.
 
 ## M2 — Dashboard page · _Phase 0/3_
 
