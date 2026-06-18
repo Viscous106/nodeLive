@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+@config '../../tailwind.config.ts';
+
+:root {
+  --font-sans: 'Source Sans Pro', system-ui, sans-serif;
+
+  /* Brand */
+  --color-primary: #2563eb;
+  --color-primary-light: #3b82f6;
+  --color-primary-dark: #1d4ed8;
+  --color-danger: #dc2626;
+  --color-gold: #f59e0b;
+
+  /* Backgrounds */
+  --bg-page: #eff6ff;
+  --bg-card: #ffffff;
+  --bg-dark-banner: #1e3a8a;
+  --bg-code-editor: #1e1e1e;
+
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-link: #2563eb;
+
+  /* Borders */
+  --border-default: #e2e8f0;
+  --border-muted: #f1f5f9;
+  --border-focus: #3b82f6;
+
+  /* Active tab indicator */
+  --tab-active-color: #2563eb;
+  --tab-inactive-color: #6b7280;
+
+  /* Semantic */
+  --success: #16a34a;
+  --success-light: #22c55e;
+  --warning: #d97706;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
