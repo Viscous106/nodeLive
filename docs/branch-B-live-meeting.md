@@ -2,7 +2,7 @@
 
 **Branch:** `feat/live-meeting`  
 **Owner:** Dev B  
-**Base branch:** `feat/shared-foundation`  
+**Base branch:** `main` (foundation skeleton already merged)  
 **Estimated time:** 4 days  
 **Stack:** React 19 + TSX (frontend) | Python 3.12 + FastAPI + python-socketio (backend)  
 **This is the core differentiator — what makes linkHQ unique vs Scaler**

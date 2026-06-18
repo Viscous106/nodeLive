@@ -50,18 +50,20 @@ linkHQ/
 │   ├── server.js             — Express server with JWT + webhooks
 │   ├── src/App.tsx           — Zoom Component View integration reference
 │   └── lib/                  — intervals.js, zoomAuth.js (port to Python)
-├── frontend/                 — [to be created on feat/shared-foundation]
-└── backend/                  — [to be created on feat/shared-foundation]
+├── frontend/                 — React 19 + Vite app (skeleton on main)
+└── backend/                  — Python 3.12 + FastAPI app (skeleton on main)
 ```
 
 ## Branch Strategy
 
 ```
-main
-└── feat/shared-foundation   ← Both devs: Day 1 shared setup (Docker, design system, DB)
-      ├── feat/dashboard      ← Dev A: Auth, dashboard, session pages
-      └── feat/live-meeting     ← Dev B: Zoom SDK, 11 live-meeting features, WebSocket
+main   ← foundation skeleton (FastAPI + Vite + Docker + design system) lives here
+  ├── feat/dashboard      ← Dev A: Auth, dashboard, session pages
+  └── feat/live-meeting   ← Dev B: Zoom SDK, 11 live-meeting features, WebSocket
 ```
+
+Both feature branches are cut from `main` and PR back into `main`. There is no
+long-lived shared branch — the Day-1 skeleton was merged to `main` directly.
 
 ## Local Development
 

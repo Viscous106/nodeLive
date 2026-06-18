@@ -2,7 +2,7 @@
 
 **Branch:** `feat/dashboard`  
 **Owner:** Dev A  
-**Base branch:** `feat/shared-foundation`  
+**Base branch:** `main` (foundation skeleton already merged)  
 **Estimated time:** 3 days  
 **Stack:** React 19 + TSX (frontend) | Python 3.12 + FastAPI (backend)  
 **Design ref:** `lms-ui-research/analysis/` + `lms-ui-research/screenshots/provided/`
