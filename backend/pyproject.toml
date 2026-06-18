@@ -22,3 +22,9 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 addopts = "-q"
+filterwarnings = [
+    # passlib accesses argon2.__version__ (its own deprecation, not ours)
+    "ignore:.*argon2.__version__.*:DeprecationWarning",
+    # python-jose uses datetime.utcnow() internally
+    "ignore:.*datetime.datetime.utcnow.*:DeprecationWarning",
+]

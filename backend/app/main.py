@@ -56,8 +56,10 @@ def create_app() -> FastAPI:
         return {"status": "ready"}
 
     # Routers added here as features land:
-    # app.include_router(auth.router, prefix="/api")
-    # app.include_router(sessions.router, prefix="/api")
+    from app.api import auth, sessions
+
+    app.include_router(auth.router, prefix="/api")
+    app.include_router(sessions.router, prefix="/api")
 
     return app
 

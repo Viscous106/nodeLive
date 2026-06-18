@@ -29,6 +29,7 @@ anthropic==0.42.0
 # Config / validation
 pydantic==2.10.4
 pydantic-settings==2.7.1
+email-validator==2.2.0
 
 # Observability + safety
 structlog==24.4.0
