@@ -4,6 +4,7 @@ import { ProtectedRoute, PublicOnlyRoute } from '@/components/auth/guards'
 import DashboardPage from '@/pages/DashboardPage'
 import LoginPage from '@/pages/LoginPage'
 import NotFoundPage from '@/pages/NotFoundPage'
+import SessionDetailPage from '@/pages/SessionDetailPage'
 import SignupPage from '@/pages/SignupPage'
 
 export const router = createBrowserRouter([
@@ -17,7 +18,10 @@ export const router = createBrowserRouter([
   },
   {
     element: <ProtectedRoute />,
-    children: [{ path: '/dashboard', element: <DashboardPage /> }],
+    children: [
+      { path: '/dashboard', element: <DashboardPage /> },
+      { path: '/session/:sessionId', element: <SessionDetailPage /> },
+    ],
   },
   { path: '*', element: <NotFoundPage /> },
 ])
