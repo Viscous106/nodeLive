@@ -38,6 +38,29 @@ export interface ClassSession {
   zoomMeetingId: string | null
 }
 
+export interface Assignment {
+  id: string
+  courseId: string
+  sessionId: string | null
+  title: string
+  description: string | null
+  dueAt: string | null // ISO 8601
+  maxPoints: number
+  unlockedAt: string | null
+}
+
+export type SubmissionStatus = 'SUBMITTED' | 'GRADED'
+
+export interface Submission {
+  id: string
+  assignmentId: string
+  userId: string
+  content: string
+  status: SubmissionStatus
+  grade: number | null
+  feedback: string | null
+}
+
 /** Credentials returned by GET /api/sessions/:id/zoom-token (Dev B owns). */
 export interface ZoomJoinToken {
   sdkKey: string

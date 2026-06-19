@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 
 import { SkipLink } from '@/components/layout/SkipLink'
 import { TopNav } from '@/components/layout/TopNav'
+import { AssignmentTab } from '@/components/session/AssignmentTab'
 import { SessionTabBar } from '@/components/session/SessionTabBar'
 import type { SessionTab } from '@/components/session/SessionTabBar'
 import { SimilarSessionsRow } from '@/components/session/SimilarSessionsRow'
@@ -81,9 +82,7 @@ export default function SessionDetailPage() {
                   <SimilarSessionsRow sessionId={session.id} />
                 </>
               )}
-              {tab === 'Assignment' && (
-                <TabPlaceholder text="Assignments for this session will appear here." />
-              )}
+              {tab === 'Assignment' && <AssignmentTab session={session} />}
               {tab === 'Feedback' && (
                 <TabPlaceholder text="Feedback opens once the session has ended." />
               )}
