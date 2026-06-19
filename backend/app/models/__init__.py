@@ -5,7 +5,7 @@ Alembic autogenerate. Dev A and Dev B add their model imports as they build.
 """
 
 from app.models.base import Base
-from app.models.course import ClassSession, Course, SessionStatus
+from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.user import User, UserRole
 
 __all__ = [
@@ -15,4 +15,5 @@ __all__ = [
     "Course",
     "ClassSession",
     "SessionStatus",
+    "Enrollment",
 ]
