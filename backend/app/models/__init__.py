@@ -7,6 +7,20 @@ Alembic autogenerate. Dev A and Dev B add their model imports as they build.
 from app.models.assignment import Assignment, Submission, SubmissionStatus
 from app.models.base import Base
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
+from app.models.live_meeting import (
+    Bookmark,
+    CueCard,
+    LeaderboardPoint,
+    Notice,
+    PinnedMessage,
+    Poll,
+    PollResponse,
+    PollStatus,
+    Quiz,
+    QuizQuestion,
+    QuizResponse,
+    QuizStatus,
+)
 from app.models.user import User, UserRole
 
 __all__ = [
@@ -20,4 +34,16 @@ __all__ = [
     "Assignment",
     "Submission",
     "SubmissionStatus",
+    "CueCard",
+    "Poll",
+    "PollResponse",
+    "PollStatus",
+    "Quiz",
+    "QuizQuestion",
+    "QuizResponse",
+    "QuizStatus",
+    "Bookmark",
+    "Notice",
+    "PinnedMessage",
+    "LeaderboardPoint",
 ]
