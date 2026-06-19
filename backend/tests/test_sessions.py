@@ -88,3 +88,50 @@ async def test_non_host_student_cannot_patch(client, session):
 
     resp = await client.patch("/api/sessions/session-1", json={"status": "ENDED"})
     assert resp.status_code == 403
+
+
+async def _seed_similar(session, host_id):
+    from app.models.course import ClassSession, Course, SessionStatus
+
+    session.add_all([Course(id="c1", title="DB"), Course(id="c2", title="Net")])
+    await session.flush()
+    for sid, cid in [
+        ("s-target", "c1"),
+        ("s-sib1", "c1"),
+        ("s-sib2", "c1"),
+        ("s-other", "c2"),
+    ]:
+        session.add(
+            ClassSession(
+                id=sid,
+                course_id=cid,
+                host_id=host_id,
+                title=f"Lecture {sid}",
+                scheduled_at=datetime(2026, 7, 1, 10, 0, tzinfo=UTC),
+                duration_mins=60,
+                status=SessionStatus.SCHEDULED,
+            )
+        )
+    await session.commit()
+
+
+async def test_similar_returns_same_course_excluding_self(client, session):
+    uid = await _signup(client, "h@example.com")
+    await _seed_similar(session, uid)
+    r = await client.get("/api/sessions/s-target/similar")
+    assert r.status_code == 200
+    assert {s["id"] for s in r.json()} == {"s-sib1", "s-sib2"}
+
+
+async def test_similar_requires_auth(client, session):
+    uid = await _signup(client, "h@example.com")
+    await _seed_similar(session, uid)
+    client.cookies.clear()
+    r = await client.get("/api/sessions/s-target/similar")
+    assert r.status_code == 401
+
+
+async def test_similar_unknown_session_is_404(client):
+    await _signup(client, "h@example.com")
+    r = await client.get("/api/sessions/nope/similar")
+    assert r.status_code == 404
