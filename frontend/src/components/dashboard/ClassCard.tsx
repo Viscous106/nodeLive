@@ -12,11 +12,13 @@ function timeRange(iso: string, mins: number): string {
 
 export function ClassCard({ session }: { session: ClassSession }) {
   return (
-    <div className="flex items-start gap-3 rounded-card border border-border bg-card p-4">
+    <div className="flex items-start gap-3 rounded-card border border-border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-card">
       <span
-        className="mt-0.5 h-10 w-10 shrink-0 rounded-full bg-primary/10"
+        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
         aria-hidden="true"
-      />
+      >
+        {session.title.charAt(0).toUpperCase()}
+      </span>
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-text-primary">
           {session.title}

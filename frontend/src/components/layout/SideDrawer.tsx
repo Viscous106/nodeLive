@@ -1,5 +1,6 @@
 import { Calendar, House, Trophy, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 
 import { cn } from '@/lib/utils'
@@ -42,6 +43,23 @@ function DrawerLink({ item, onNavigate }: { item: NavItem; onNavigate: () => voi
 export function SideDrawer() {
   const open = useUiStore((s) => s.drawerOpen)
   const close = useUiStore((s) => s.closeDrawer)
+  const closeRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') close()
+    }
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+      previouslyFocused?.focus()
+    }
+  }, [open, close])
 
   return (
     <>
@@ -68,6 +86,7 @@ export function SideDrawer() {
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           <span className="text-base font-bold text-text-primary">linkHQ</span>
           <button
+            ref={closeRef}
             type="button"
             onClick={close}
             aria-label="Close menu"

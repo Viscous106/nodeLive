@@ -1,6 +1,7 @@
-import { Calendar, Clock, GraduationCap } from 'lucide-react'
+import { Calendar, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
+import { SessionIllustration } from '@/components/session/SessionIllustration'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { ClassSession } from '@/types'
@@ -42,12 +43,7 @@ export function UpcomingSessionHero({ session }: { session: ClassSession }) {
         </div>
 
         <div className="flex flex-col items-center gap-4">
-          <span
-            className="hidden h-20 w-20 items-center justify-center rounded-full bg-white/60 text-primary md:flex"
-            aria-hidden="true"
-          >
-            <GraduationCap className="h-10 w-10" />
-          </span>
+          <SessionIllustration className="hidden h-32 w-40 md:block" />
           <Button
             variant={ended ? 'primary' : 'danger'}
             size="lg"

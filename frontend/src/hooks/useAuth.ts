@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '@/lib/api'
+import { toast } from '@/stores/toastStore'
 import type { User } from '@/types'
 
 const ME_KEY = ['auth', 'me'] as const
@@ -56,6 +57,7 @@ export function useLogout() {
     onSuccess: () => {
       qc.setQueryData(ME_KEY, null)
       qc.clear()
+      toast({ variant: 'success', title: 'Signed out' })
     },
   })
 }

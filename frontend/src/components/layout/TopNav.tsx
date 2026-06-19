@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, GraduationCap, LogOut, Menu } from 'lucide-react'
+import { Bell, ChevronDown, Coins, GraduationCap, LogOut, Menu } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { Avatar } from '@/components/ui/avatar'
@@ -32,9 +32,13 @@ export function TopNav() {
 
       <div className="flex items-center gap-2 sm:gap-4">
         {user && (
-          <span className="hidden items-center gap-1.5 rounded-pill border border-gold-border px-3 py-1 text-sm font-semibold text-gold-border sm:inline-flex">
-            <span aria-hidden="true">●</span>
+          <span
+            className="hidden items-center gap-1.5 rounded-pill border border-gold-border px-3 py-1 text-sm font-semibold text-gold-border sm:inline-flex"
+            title="Your coins"
+          >
+            <Coins className="h-4 w-4" aria-hidden="true" />
             {user.coins}
+            <span className="sr-only">coins</span>
           </span>
         )}
         <button

@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import { SkipLink } from '@/components/layout/SkipLink'
 import { TopNav } from '@/components/layout/TopNav'
 import { SessionTabBar } from '@/components/session/SessionTabBar'
 import type { SessionTab } from '@/components/session/SessionTabBar'
@@ -42,8 +43,12 @@ export default function SessionDetailPage() {
 
   return (
     <div className="min-h-screen bg-page">
+      <SkipLink />
       <TopNav />
-      <main className="mx-auto max-w-[1100px] px-4 py-6 sm:px-page-x">
+      <main
+        id="main-content"
+        className="mx-auto max-w-[1100px] px-4 py-6 sm:px-page-x"
+      >
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-8 w-64" />

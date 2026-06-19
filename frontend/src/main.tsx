@@ -5,13 +5,18 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import App from './App.tsx'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { Toaster } from './components/ui/Toaster'
 import { queryClient } from './lib/queryClient'
 import './styles/globals.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <App />
+        <Toaster />
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )
