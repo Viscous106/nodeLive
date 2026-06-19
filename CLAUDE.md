@@ -47,7 +47,8 @@ alembic upgrade head
 uvicorn app.main:socket_app --reload --port 8000   # NOTE: socket_app, not app
 
 ruff check . && ruff format --check .   # lint gate (CI)
-pytest                                   # tests (CI)
+pytest                                   # tests (CI) — needs postgres up;
+                                         # conftest auto-creates the linkhq_test DB
 
 # Frontend (run from frontend/)
 npm install

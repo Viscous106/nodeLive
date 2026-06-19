@@ -1,9 +1,11 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [main]
+  # Run on every branch push so devs get CI feedback before opening a PR,
+  # and on PRs to main (which test the merge result).
   push:
+    branches: ['**']
+  pull_request:
     branches: [main]
 
 # Cancel superseded runs on feature branches to save minutes, but never on
@@ -72,11 +74,8 @@ jobs:
       - name: Apply migrations
         run: alembic upgrade head
 
-      - name: Create test database
-        env:
-          PGPASSWORD: localdev
-        run: psql -h localhost -U edustream -d edustream -c "CREATE DATABASE linkhq_test;" || true
-
+      # No manual test-DB step: tests/conftest.py creates linkhq_test if missing,
+      # so CI runs exactly what a dev runs locally.
       - name: Test (pytest)
         run: pytest
 
