@@ -21,7 +21,7 @@ watch-tracking). Shared seams are called out per milestone.
 | M1 App shell & design system | Phase 0 | ✅ done (PR #3) |
 | M2 Dashboard page | Phase 0/3 | ✅ done (PR #4) |
 | M3 Session detail | Phase 0/3 | ✅ done (PR #5) |
-| M4 Frontend polish & hardening | Phase 1/2 support | |
+| M4 Frontend polish & hardening | Phase 1/2 support | ✅ done (PR #7) |
 | M5 Assignments & grading | Phase 3 | |
 | M6 Lecture notes + recording player (+ watch-tracking UI) | Phase 3 + compliance | |
 | M7 Analytics dashboards | Phase 3/4 | |
