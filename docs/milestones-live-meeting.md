@@ -21,7 +21,7 @@ UI, admin. Shared seams are called out per milestone.
 ### Roadmap mapping
 | Milestone | plan.md phase | Status |
 |---|---|---|
-| M1 Zoom JWT + intervals | Phase 0/1 | start now |
+| M1 Zoom JWT + intervals | Phase 0/1 | ✅ done (PR #10) |
 | M2 Realtime backbone | Phase 1 | |
 | M3 Live feature APIs | Phase 1/2 | |
 | M4 Frontend live page | Phase 1/2 | |
