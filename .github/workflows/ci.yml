@@ -6,10 +6,12 @@ on:
   push:
     branches: [main]
 
-# Cancel superseded runs on the same ref to save minutes.
+# Cancel superseded runs on feature branches to save minutes, but never on
+# main — every commit on main must keep its own full, green run (back-to-back
+# pushes would otherwise leave the earlier commit showing a cancelled ✗).
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   backend:
