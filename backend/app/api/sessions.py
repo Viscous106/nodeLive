@@ -80,6 +80,25 @@ async def _get_or_404(db: AsyncSession, session_id: str) -> ClassSession:
     return cs
 
 
+@router.get("/{session_id}/similar", response_model=list[ClassSessionOut])
+async def similar_sessions(
+    session_id: str,
+    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[ClassSession]:
+    target = await _get_or_404(db, session_id)
+    stmt = (
+        select(ClassSession)
+        .where(
+            ClassSession.course_id == target.course_id,
+            ClassSession.id != target.id,
+        )
+        .order_by(ClassSession.scheduled_at.desc())
+        .limit(5)
+    )
+    return list(await db.scalars(stmt))
+
+
 @router.get("/{session_id}", response_model=ClassSessionOut)
 async def get_session(
     session_id: str,
