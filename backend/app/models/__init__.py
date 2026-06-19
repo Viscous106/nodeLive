@@ -4,6 +4,7 @@ Import every model module here so `Base.metadata` is fully populated for
 Alembic autogenerate. Dev A and Dev B add their model imports as they build.
 """
 
+from app.models.assignment import Assignment, Submission, SubmissionStatus
 from app.models.base import Base
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.user import User, UserRole
@@ -16,4 +17,7 @@ __all__ = [
     "ClassSession",
     "SessionStatus",
     "Enrollment",
+    "Assignment",
+    "Submission",
+    "SubmissionStatus",
 ]
