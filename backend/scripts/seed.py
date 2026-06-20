@@ -52,8 +52,13 @@ async def _ensure_live_session(db) -> None:
 
 async def seed() -> None:
     async with AsyncSessionLocal() as db:
-        # Load what already exists (keyed by stable IDs, not email).
-        instructor = await db.get(User, _INSTRUCTOR_ID)
+        # Reuse any existing seed rows. Look users up by EMAIL (the unique
+        # constraint), not id: older deploys created these users with different
+        # ids, so an id-only check misses them and re-inserts the same email →
+        # `duplicate key value violates unique constraint "ix_users_email"`.
+        instructor = await db.scalar(
+            select(User).where(User.email == "instructor@linkhq.dev")
+        )
         course = await db.get(Course, _COURSE_ID)
 
         if instructor is not None and course is not None:
@@ -74,11 +79,12 @@ async def seed() -> None:
 
         students = []
         for i in (1, 2):
-            s = await db.get(User, f"seed-student-{i}")
+            email = f"student{i}@linkhq.dev"
+            s = await db.scalar(select(User).where(User.email == email))
             if s is None:
                 s = User(
                     id=f"seed-student-{i}",
-                    email=f"student{i}@linkhq.dev",
+                    email=email,
                     hashed_password=hash_password(_PASSWORD),
                     display_name=f"Student {i}",
                     role=UserRole.STUDENT,
