@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 [tool.ruff]
 target-version = "py312"
 line-length = 88
-extend-exclude = [".venv", "alembic/versions"]
+extend-exclude = [".venv", ".venv*", "alembic/versions"]
 
 [tool.ruff.lint]
 # pycodestyle, pyflakes, isort, pyupgrade, bugbear, comprehensions, simplify

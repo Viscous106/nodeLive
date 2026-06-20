@@ -4,6 +4,7 @@ __pycache__/
 *.so
 .venv/
 venv/
+.venv*           # any venv variant (.venv312, .venv-py312, and the .venv symlink)
 *.egg-info/
 dist/
 build/

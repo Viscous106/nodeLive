@@ -24,9 +24,11 @@ watch-tracking). Shared seams are called out per milestone.
 | M4 Frontend polish & hardening | Phase 1/2 support | ✅ done (PR #7) |
 | M5 Assignments & grading | Phase 3 | ✅ done (PR #9) |
 | M6 Lecture notes + recording player (+ watch-tracking UI) | Phase 3 + compliance | 🟡 lecture notes ✅ (PR #17); recording player + watch-tracking deferred (needs Dev B M7 recordings) |
-| M7 Analytics dashboards | Phase 3/4 | |
-| M8 Accounts: OAuth, profile, email | Phase 6 | |
-| M9 Admin panel + responsive/dark/PWA | Phase 6 | |
+| **AF Organizations & Memberships** (foundation) | identity | 📐 designed ([spec](superpowers/specs/2026-06-20-admin-dashboard-design.md)) — prerequisite for AD; **additive** (`User.role` kept as a synced mirror; dropped in a later contract step) |
+| **AD Admin Dashboard** (members/roles, sessions, attendance, overview) | Phase 3/4/6 | 📐 designed ([spec](superpowers/specs/2026-06-20-admin-dashboard-design.md)) — **consolidates M7 + M9** |
+| ~~M7 Analytics dashboards~~ | Phase 3/4 | → folded into **AD** (Attendance + Overview tabs) |
+| M8 Accounts: OAuth, profile, email | Phase 6 | (org/membership identity foundation moves under **AF**) |
+| ~~M9 Admin panel + responsive/dark/PWA~~ | Phase 6 | admin panel → **AD**; responsive/dark/PWA stay here |
 | MP Production hardening (shared) | Phase 5 | |
 
 ---
@@ -95,13 +97,33 @@ watch-tracking). Shared seams are called out per milestone.
 
 **DoD:** play recording, seek, jump to a bookmark; watch % reflects the **union of real played spans** (seek-to-end ≠ 100%); notes download via signed URL.
 
-## M7 — Analytics dashboards · _Phase 3/4_
+## AF — Organizations & Memberships (foundation) · _identity_
 
-- [ ] Course analytics: attendance heatmap, completion rates (reads `attendance_final` + watch read-models)
-- [ ] Instructor insights page: per-session engagement (quiz/poll participation) · **seam:** data from Dev B's leaderboard/quiz tables
+Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpowers/specs/2026-06-20-admin-dashboard-design.md) (Part A). **Prerequisite for AD.**
+
+- [ ] `Organization` + `Membership` (user↔org↔role, reuses `UserRole`) + `Invitation` models + migration that backfills memberships from `users.role` (**keeps `users.role`** as a synced mirror — expand-contract)
+- [ ] **Additive** `get_current_membership` / `require_org_role(*roles)` for the admin surface only; existing guards/`UserOut`/frontend untouched (still read the synced `users.role`)
+- [ ] One role-write service updates `membership.role` + the `users.role` mirror; invite (email-locked link) + `POST /signup?inviteToken`; seed/`set_role` write both · **seam:** flag the new models to Dev A; the later **contract** step (drop `users.role`) is coordinated
+
+**DoD:** non-breaking (all existing tests green, untouched); admin `require_org_role` gates; invite→signup assigns role; promote syncs both + blocks last-admin demotion; backfill migration round-trips.
+
+## AD — Admin Dashboard · _Phase 3/4/6 — consolidates M7 + M9_
+
+Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpowers/specs/2026-06-20-admin-dashboard-design.md) (Part B). `/admin`, ADMIN-only, built on **AF**. Phased: Members → Sessions → Attendance → Overview.
+
+- [ ] **Members & Roles** tab — list members, promote/demote, invite-by-link, revoke
+- [ ] **Sessions** tab — list/create/edit/cancel class sessions (real Zoom auto-create = fast-follow)
+- [ ] **Attendance** tab — per-session + per-student from `attendance_final` (empty until real Zoom creds feed M6 reconcile)
+- [ ] **Overview** tab — counts, recent activity, engagement snapshot (leaderboard / quiz-poll participation)
+
+**DoD:** an org admin manages roles, schedules sessions, and views attendance + an overview; all `require_org_role(ADMIN)`-gated; empty states where data is unfed.
+
+## M7 — Analytics dashboards · _Phase 3/4_ → **folded into AD**
+
+Superseded by AD (Attendance + Overview tabs). Remaining student-facing pieces:
 - [ ] Student "Year Revisited" / progress summary (consumes Dev B's AI engagement analysis when available)
 
-**DoD:** instructor sees real attendance/engagement for seeded sessions; queries indexed; no N+1.
+**DoD:** instructor attendance/engagement now lives in AD; the student progress summary ships here when the AI engagement analysis (Dev B M9) lands.
 
 ## M8 — Accounts: OAuth, profile, email · _Phase 6_
 
@@ -111,14 +133,14 @@ watch-tracking). Shared seams are called out per milestone.
 
 **DoD:** sign in with Google; edit profile; reminder emails fire via a Celery beat schedule.
 
-## M9 — Admin panel + responsive/dark/PWA · _Phase 6_
+## M9 — Responsive / dark / PWA · _Phase 6_ (admin panel → **AD**)
 
-- [ ] Admin panel: user management, course overview, system metrics (admin-gated)
+- [ ] ~~Admin panel: user management, course overview, system metrics~~ → **AD** (Members/Overview)
 - [ ] Mobile-responsive dashboard + bottom-sheet patterns
 - [ ] Dark/light mode (token-driven)
 - [ ] PWA manifest + service worker (offline notice for scheduled classes)
 
-**DoD:** admin CRUD works; dashboard usable at mobile widths; theme toggle persists; installable PWA.
+**DoD:** dashboard usable at mobile widths; theme toggle persists; installable PWA.
 
 ## MP — Production hardening (shared with Dev B) · _Phase 5_
 
