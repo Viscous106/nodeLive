@@ -203,3 +203,36 @@ async def test_admin_lists_courses(client, session):
     r = await client.get("/api/admin/courses")
     assert r.status_code == 200
     assert {c["title"] for c in r.json()} == {"Databases", "Operating Systems"}
+
+
+async def test_admin_creates_course_then_schedules_into_it(client, session):
+    await _user(session, "admin@x.com", UserRole.ADMIN)
+    await _login(client, "admin@x.com")
+
+    # no courses → create one through the UI path
+    assert (await client.get("/api/admin/courses")).json() == []
+    cr = await client.post("/api/admin/courses", json={"title": "Distributed Systems"})
+    assert cr.status_code == 201
+    course_id = cr.json()["id"]
+    assert cr.json()["title"] == "Distributed Systems"
+
+    # now a session can be scheduled into it
+    sr = await client.post(
+        "/api/sessions",
+        json={"courseId": course_id, "title": "Raft", "scheduledAt": _when()},
+    )
+    assert sr.status_code == 201
+
+
+async def test_create_course_blank_title_rejected(client, session):
+    await _user(session, "admin@x.com", UserRole.ADMIN)
+    await _login(client, "admin@x.com")
+    r = await client.post("/api/admin/courses", json={"title": "   "})
+    assert r.status_code == 422
+
+
+async def test_non_admin_cannot_create_course(client, session):
+    await _user(session, "stu@x.com", UserRole.STUDENT)
+    await _login(client, "stu@x.com")
+    r = await client.post("/api/admin/courses", json={"title": "X"})
+    assert r.status_code == 403
