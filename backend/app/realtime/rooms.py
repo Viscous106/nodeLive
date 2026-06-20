@@ -6,8 +6,20 @@ session:{id}:instructor  — instructors/host only
 """
 
 
+def session_room(session_id: str) -> str:
+    return f"session:{session_id}"
+
+
+def private_room(session_id: str, user_id: str) -> str:
+    return f"session:{session_id}:{user_id}"
+
+
+def instructor_room(session_id: str) -> str:
+    return f"session:{session_id}:instructor"
+
+
 def compute_rooms(session_id: str, user_id: str, *, is_privileged: bool) -> list[str]:
-    rooms = [f"session:{session_id}", f"session:{session_id}:{user_id}"]
+    rooms = [session_room(session_id), private_room(session_id, user_id)]
     if is_privileged:
-        rooms.append(f"session:{session_id}:instructor")
+        rooms.append(instructor_room(session_id))
     return rooms
