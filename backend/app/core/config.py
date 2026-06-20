@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     # chicken-and-egg of needing an admin to use the admin panel when there's no
     # shell to run `set_role`. Safe: it's an explicit allowlist, overridable via
     # the BOOTSTRAP_ADMIN_EMAILS env var.
-    BOOTSTRAP_ADMIN_EMAILS: str = "abhinav.singh@scaler.com"
+    BOOTSTRAP_ADMIN_EMAILS: str = "abhinav.singh@scaler.com,yash.virulkar@scaler.com"
 
     # --- Zoom Meeting SDK ---
     ZOOM_SDK_KEY: str = ""
