@@ -2,7 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { ApiError, api } from '@/lib/api'
 import { toast } from '@/stores/toastStore'
-import type { Invitation, InvitePreview, Member, UserRole } from '@/types'
+import type {
+  ClassSession,
+  Course,
+  Invitation,
+  InvitePreview,
+  Member,
+  SessionStatus,
+  UserRole,
+} from '@/types'
 
 const MEMBERS_KEY = ['admin', 'members'] as const
 const INVITES_KEY = ['admin', 'invitations'] as const
@@ -77,5 +85,75 @@ export function useInvitePreview(token: string | null) {
     enabled: Boolean(token),
     retry: false,
     staleTime: Infinity,
+  })
+}
+
+// --- Sessions (schedule & manage) -------------------------------------------
+
+const SESSIONS_KEY = ['admin', 'sessions'] as const
+
+export interface SessionInput {
+  courseId: string
+  title: string
+  description?: string | null
+  scheduledAt: string // ISO 8601
+  durationMins: number
+  zoomMeetingId?: string | null
+}
+
+export function useAdminSessions(status?: SessionStatus | 'ALL') {
+  const filter = status && status !== 'ALL' ? `?status=${status}` : ''
+  return useQuery({
+    queryKey: [...SESSIONS_KEY, status ?? 'ALL'],
+    queryFn: () => api.get<ClassSession[]>(`/api/admin/sessions${filter}`),
+  })
+}
+
+export function useAdminCourses() {
+  return useQuery({
+    queryKey: ['admin', 'courses'],
+    queryFn: () => api.get<Course[]>('/api/admin/courses'),
+  })
+}
+
+export function useCreateSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: SessionInput) =>
+      api.post<ClassSession>('/api/sessions', input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SESSIONS_KEY })
+      toast({ variant: 'success', title: 'Session scheduled' })
+    },
+    onError: () =>
+      toast({ variant: 'error', title: 'Could not schedule the session.' }),
+  })
+}
+
+export function useUpdateSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...patch }: { id: string } & Partial<SessionInput>) =>
+      api.patch<ClassSession>(`/api/sessions/${id}`, patch),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SESSIONS_KEY })
+      toast({ variant: 'success', title: 'Session updated' })
+    },
+    onError: () =>
+      toast({ variant: 'error', title: 'Could not update the session.' }),
+  })
+}
+
+export function useCancelSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<ClassSession>(`/api/admin/sessions/${id}/cancel`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SESSIONS_KEY })
+      toast({ variant: 'success', title: 'Session cancelled' })
+    },
+    onError: () =>
+      toast({ variant: 'error', title: 'Could not cancel the session.' }),
   })
 }

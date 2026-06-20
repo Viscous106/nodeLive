@@ -24,8 +24,8 @@ watch-tracking). Shared seams are called out per milestone.
 | M4 Frontend polish & hardening | Phase 1/2 support | ✅ done (PR #7) |
 | M5 Assignments & grading | Phase 3 | ✅ done (PR #9) |
 | M6 Lecture notes + recording player (+ watch-tracking UI) | Phase 3 + compliance | 🟡 lecture notes ✅ (PR #17); recording player + watch-tracking deferred (needs Dev B M7 recordings) |
-| **AF Organizations & Memberships** (foundation) | identity | 📐 designed ([spec](superpowers/specs/2026-06-20-admin-dashboard-design.md)) — prerequisite for AD; **additive** (`User.role` kept as a synced mirror; dropped in a later contract step) |
-| **AD Admin Dashboard** (members/roles, sessions, attendance, overview) | Phase 3/4/6 | 📐 designed ([spec](superpowers/specs/2026-06-20-admin-dashboard-design.md)) — **consolidates M7 + M9** |
+| **AF Organizations & Memberships** (foundation) | identity | ✅ done — org/membership/invitation models + backfill migration (`User.role` kept as a synced mirror), additive `require_org_role`, role-write service, invite signup |
+| **AD Admin Dashboard** (members/roles, sessions, attendance, overview) | Phase 3/4/6 | 🟡 in progress — **Members & Roles ✅** + bootstrap admin ✅ + **Sessions ✅**; Attendance / Overview pending. **consolidates M7 + M9** |
 | ~~M7 Analytics dashboards~~ | Phase 3/4 | → folded into **AD** (Attendance + Overview tabs) |
 | M8 Accounts: OAuth, profile, email | Phase 6 | (org/membership identity foundation moves under **AF**) |
 | ~~M9 Admin panel + responsive/dark/PWA~~ | Phase 6 | admin panel → **AD**; responsive/dark/PWA stay here |
@@ -111,9 +111,11 @@ Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpow
 
 Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpowers/specs/2026-06-20-admin-dashboard-design.md) (Part B). `/admin`, ADMIN-only, built on **AF**. Phased: Members → Sessions → Attendance → Overview.
 
+**Status: phase 2 of 4 shipped** — Members & Roles, no-shell bootstrap admin, and the Sessions tab are implemented and locally verified (156 backend tests + frontend build green; live-smoke'd against the dev DB); pending commit/PR/deploy. Attendance and Overview tabs are next.
+
 - [x] **Members & Roles** tab — list members, promote/demote (last-admin guard), invite-by-link, revoke + invite-aware signup · `/api/admin/*` + `/admin` UI (12 backend tests)
 - [x] **No-shell bootstrap admin** — `BOOTSTRAP_ADMIN_EMAILS` (default `abhinav.singh@scaler.com`) auto-grants ADMIN on login/signup, so the first admin exists on the deployed instance without Shell access (4 tests)
-- [ ] **Sessions** tab — list/create/edit/cancel class sessions (real Zoom auto-create = fast-follow)
+- [x] **Sessions** tab — list (all, status-filtered) / create (`POST /api/sessions`, new) / edit (PATCH) / cancel · `/api/admin/sessions*` + `/api/admin/courses` + tabbed `/admin` UI (9 backend tests). Manual `zoomMeetingId`; **real Zoom auto-create = documented fast-follow**
 - [ ] **Attendance** tab — per-session + per-student from `attendance_final` (empty until real Zoom creds feed M6 reconcile)
 - [ ] **Overview** tab — counts, recent activity, engagement snapshot (leaderboard / quiz-poll participation)
 
