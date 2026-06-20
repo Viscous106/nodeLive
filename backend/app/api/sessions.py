@@ -21,6 +21,7 @@ from app.schemas.session import (
     ClassSessionOut,
     ClassSessionPatch,
 )
+from app.services.enrollment import enroll_all_users
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -55,6 +56,10 @@ async def create_session(
         status=SessionStatus.SCHEDULED,
     )
     db.add(cs)
+    # Single-org: scheduling a class enrolls every current member into its
+    # course, so it shows on everyone's dashboard (and legacy courses get
+    # backfilled the moment a new session is scheduled).
+    await enroll_all_users(db, body.course_id)
     await db.commit()
     await db.refresh(cs)
     return cs

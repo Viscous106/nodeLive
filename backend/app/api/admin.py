@@ -27,6 +27,7 @@ from app.schemas.org import (
     RoleUpdate,
 )
 from app.schemas.session import ClassSessionOut
+from app.services.enrollment import enroll_all_users
 from app.services.roles import assign_role, count_org_admins
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -237,6 +238,9 @@ async def create_course(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Title required")
     course = Course(title=title)
     db.add(course)
+    await db.flush()
+    # Single-org: enroll every member so sessions in this course are visible.
+    await enroll_all_users(db, course.id)
     await db.commit()
     await db.refresh(course)
     return course
