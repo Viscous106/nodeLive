@@ -116,6 +116,27 @@ async def test_url_presigns_when_configured(client, session, monkeypatch):
     assert r.json()["url"].startswith("https://signed/recordings/occ-1.mp4")
 
 
+async def test_url_passthrough_for_external_http_key(client, session, monkeypatch):
+    # An externally-hosted recording (full URL key) is served as-is, even when
+    # R2 is unconfigured — no presign, no 501.
+    from sqlalchemy import select
+
+    import app.api.recordings as rec
+    from app.models.attendance import Meeting
+
+    monkeypatch.setattr(rec, "is_configured", lambda: False)
+    uid = await _user(session, "a@x.com")
+    await _seed(session)
+    await _enroll(session, uid)
+    m = await session.scalar(select(Meeting).where(Meeting.zoom_uuid == "occ-1"))
+    m.recording_s3_key = "https://cdn.example.com/demo.mp4"
+    await session.commit()
+    await _login(client, "a@x.com")
+    r = await client.get("/api/sessions/s1/recording/url")
+    assert r.status_code == 200
+    assert r.json()["url"] == "https://cdn.example.com/demo.mp4"
+
+
 async def test_heartbeat_seek_to_end_partial_and_read_model(client, session):
     uid = await _user(session, "a@x.com")
     await _seed(session)

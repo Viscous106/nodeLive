@@ -55,11 +55,16 @@ async def get_recording_url(
     meeting = await _resolve_recording(db, cs)
     if meeting is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No recording available")
+    key = meeting.recording_s3_key
+    # Externally-hosted recording (a public/CDN URL) — serve it as-is; presigning
+    # only applies to R2 object keys.
+    if key.startswith(("http://", "https://")):
+        return RecordingUrlOut(url=key, expires_in_secs=settings.RECORDING_URL_TTL_SECS)
     if not is_configured():
         raise HTTPException(
             status.HTTP_501_NOT_IMPLEMENTED, "Recording playback not configured"
         )
-    url = presign_get(meeting.recording_s3_key, settings.RECORDING_URL_TTL_SECS)
+    url = presign_get(key, settings.RECORDING_URL_TTL_SECS)
     return RecordingUrlOut(url=url, expires_in_secs=settings.RECORDING_URL_TTL_SECS)
 
 

@@ -23,6 +23,9 @@ _PASSWORD = "password123"
 _COURSE_ID = "seed-course-dbms"
 _INSTRUCTOR_ID = "seed-instructor"
 _LIVE_SESSION_ID = "seed-session-live"
+# Public, COEP-safe (CORS + CORP) sample MP4 — lets the recording player +
+# watch-tracking be click-through visible without R2/Zoom configured.
+_DEMO_RECORDING_URL = "https://cdn.jsdelivr.net/gh/mediaelement/mediaelement-files@master/big_buck_bunny.mp4"
 
 
 async def _ensure_live_session(db) -> None:
@@ -50,6 +53,32 @@ async def _ensure_live_session(db) -> None:
     print(f"Ensured LIVE session '{_LIVE_SESSION_ID}' for live-page testing.")
 
 
+async def _ensure_demo_recordings(db) -> None:
+    """Attach a public demo recording to each past seed session so the recording
+    player + watch-tracking are click-through visible without R2/Zoom. Idempotent
+    (keyed on a stable demo `zoom_uuid`); runs on every deploy."""
+    from app.models.attendance import Meeting
+
+    created = 0
+    for i in (1, 2, 3):
+        zoom_uuid = f"seed-rec-past-{i}"
+        if await db.scalar(select(Meeting).where(Meeting.zoom_uuid == zoom_uuid)):
+            continue
+        db.add(
+            Meeting(
+                zoom_uuid=zoom_uuid,
+                zoom_meeting_id=f"770000000{i}",  # matches seed-session-past-{i}
+                recording_s3_key=_DEMO_RECORDING_URL,
+                recording_status="stored",
+                ended_at=datetime.now(UTC) - timedelta(days=i),
+            )
+        )
+        created += 1
+    if created:
+        await db.commit()
+        print(f"Ensured {created} demo recording(s) on past sessions.")
+
+
 async def seed() -> None:
     async with AsyncSessionLocal() as db:
         # Reuse any existing seed rows. Look users up by EMAIL (the unique
@@ -64,6 +93,7 @@ async def seed() -> None:
         if instructor is not None and course is not None:
             print("Seed data already present — ensuring a LIVE session.")
             await _ensure_live_session(db)
+            await _ensure_demo_recordings(db)
             return
 
         # --- users -----------------------------------------------------------
@@ -152,6 +182,7 @@ async def seed() -> None:
 
         await db.commit()
         await _ensure_live_session(db)
+        await _ensure_demo_recordings(db)
 
     print(
         f"Seed complete: {sessions_added} sessions created incl. LIVE "
