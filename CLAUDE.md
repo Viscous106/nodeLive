@@ -129,6 +129,14 @@ build in parallel and meet in the middle. See `docs/TEAM.md`,
 - Zoom S2S OAuth, Cloudflare R2 (S3-compatible), and recording ingest are wired
   to `.env` (`backend/.env.example`) but untested against live endpoints.
 
+## Verification bar (non-negotiable)
+
+**Every change is independently verified by Codex before it is accepted.** Work
+must be genuinely production-grade — real tests that pass, no stubbed/faked
+results, no hardcoding to make checks go green, handled edge cases, and verified
+end-to-end. Anything less than a correct, production-quality implementation is
+rejected, full stop.
+
 ## Conventions
 
 - **Commits are signed and authored under each dev's own identity.** Conventional
