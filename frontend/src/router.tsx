@@ -9,6 +9,7 @@ const LoginPage = lazy(() => import('@/pages/LoginPage'))
 const SignupPage = lazy(() => import('@/pages/SignupPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const SessionDetailPage = lazy(() => import('@/pages/SessionDetailPage'))
+const LiveMeetingPage = lazy(() => import('@/pages/LiveMeetingPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 function Lazy({ children }: { children: ReactNode }) {
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/dashboard', element: <Lazy><DashboardPage /></Lazy> },
       { path: '/session/:sessionId', element: <Lazy><SessionDetailPage /></Lazy> },
+      { path: '/live/:sessionId', element: <Lazy><LiveMeetingPage /></Lazy> },
     ],
   },
   { path: '*', element: <Lazy><NotFoundPage /></Lazy> },
