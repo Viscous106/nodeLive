@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     ZOOM_SDK_KEY: str = ""
     ZOOM_SDK_SECRET: str = ""
 
+    # --- Zoom webhooks + Server-to-Server OAuth (Reports API, recordings) ---
+    ZOOM_WEBHOOK_SECRET_TOKEN: str = ""
+    ZOOM_S2S_ACCOUNT_ID: str = ""
+    ZOOM_S2S_CLIENT_ID: str = ""
+    ZOOM_S2S_CLIENT_SECRET: str = ""
+    # Delay before reconciling attendance against the Reports API, giving Zoom
+    # time to finalize the participant report after the meeting ends.
+    ATTENDANCE_RECONCILE_DELAY_SECS: int = 5 * 60
+
     # --- AI ---
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
