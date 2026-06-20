@@ -12,6 +12,7 @@ Single-org for now: `get_or_create_default_org` is the seam that later becomes
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.org import DEFAULT_ORG_SLUG, Membership, Organization
 from app.models.user import User, UserRole
 
@@ -80,3 +81,20 @@ async def count_org_admins(db: AsyncSession, org: Organization) -> int:
         .select_from(Membership)
         .where(Membership.org_id == org.id, Membership.role == UserRole.ADMIN)
     )
+
+
+async def maybe_bootstrap_admin(db: AsyncSession, user: User) -> bool:
+    """Auto-grant ADMIN to a configured bootstrap email (no-shell first admin).
+
+    Lets the very first admin exist on a deployed instance without shell access
+    to run `set_role`: the moment a `BOOTSTRAP_ADMIN_EMAILS` address signs up or
+    logs in, it's promoted. Idempotent — only writes when not already an admin
+    on both the membership and the mirror. Returns whether a promotion happened.
+    """
+    if user.email.lower() not in settings.bootstrap_admin_emails:
+        return False
+    membership = await get_or_create_membership(db, user)
+    if membership.role is UserRole.ADMIN and user.role is UserRole.ADMIN:
+        return False
+    await assign_role(db, user, UserRole.ADMIN)
+    return True
