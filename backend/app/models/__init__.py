@@ -5,6 +5,13 @@ Alembic autogenerate. Dev A and Dev B add their model imports as they build.
 """
 
 from app.models.assignment import Assignment, Submission, SubmissionStatus
+from app.models.attendance import (
+    AttendanceFinal,
+    AttendanceSession,
+    AttendanceSource,
+    Meeting,
+    WebhookEvent,
+)
 from app.models.base import Base
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.live_meeting import (
@@ -46,4 +53,9 @@ __all__ = [
     "Notice",
     "PinnedMessage",
     "LeaderboardPoint",
+    "Meeting",
+    "AttendanceSession",
+    "AttendanceFinal",
+    "AttendanceSource",
+    "WebhookEvent",
 ]
