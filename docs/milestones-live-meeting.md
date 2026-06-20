@@ -25,7 +25,7 @@ UI, admin. Shared seams are called out per milestone.
 | M2 Realtime backbone | Phase 1 | ✅ done (PR #11) |
 | M3 Live feature APIs | Phase 1/2 | ✅ done (PR #12) |
 | M4 Frontend live page | Phase 1/2 | ✅ done (PR #13) |
-| M5 Live AI chat + polish | Phase 4 (live) | |
+| M5 Live AI chat + polish | Phase 4 (live) | ✅ done (PR #14) |
 | M6 Webhooks + attendance reconcile | compliance (Phase 3/5) | |
 | M7 Recording ingest + watch-tracking | compliance (Phase 3) | |
 | M8 Post-meeting AI pipeline | Phase 4 | |
@@ -88,11 +88,15 @@ _Known issues for the PR:_
 
 ## M5 — Live AI chat + polish · _Phase 4 (live half)_
 
-- [ ] `POST /api/sessions/:id/live/ai-chat` — streaming Claude over socket (`ai:response-chunk|done`) with transcript context
-- [ ] `useAiStream`; toasts (assignment unlock, quiz score, notice); leave-confirm dialog
-- [ ] Zoom join-failure error states
+- [x] `POST /api/sessions/:id/live/ai-chat` — streams Claude over the asker's private socket room (`ai:response-chunk|done`), using the Redis caption buffer for transcript context; prompt-injection guarded (tag/role-marker strip + sandwiched immutable system prompt); returns **501** when no `ANTHROPIC_API_KEY` so the UI degrades gracefully
+- [x] `useAiStream` (socket-driven streaming display in ChatPanel); toasts (assignment unlock, quiz score, notice — wired in M4); leave-confirm dialog (`ConfirmDialog`, replaces `window.confirm`)
+- [x] Zoom join-failure error states (`ZoomPanel` error + retry — landed in M4)
 
-**DoD:** AI answers using live transcript context; build + tests green.
+**DoD:** ✅ AI answers using live transcript context (test asserts the system prompt carries the session title + transcript and the message is sanitized); `npm run build` + backend ruff/pytest (89) green. Claude is stubbed in tests so they run offline; the streaming chunk→`ai:response-chunk`→done path is covered. Live: route returns 501 until `ANTHROPIC_API_KEY` is set in `.env`.
+
+_Verified:_ the `messages.stream(...)` async-context-manager call + `.text_stream` iterator and the `claude-sonnet-4-6` model id (the project's documented choice) were checked against the `claude-api` reference, not written from memory.
+
+_Known issue for the PR:_ the **caption buffer is interpolated raw** into the system prompt, and captions come from client-emitted `caption_received` events — a student could inject instructions via fake captions. The sandwiched prompt only disclaims the student's *message*. Plan defers prompt-injection hardening to M8; recorded here.
 
 ## M6 — Zoom webhooks + attendance reconcile · _compliance (Phase 3/5)_
 
