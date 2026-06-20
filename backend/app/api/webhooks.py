@@ -28,7 +28,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.attendance import AttendanceSession, Meeting, WebhookEvent
 from app.utils.attendance import build_event_id, parse_zoom_time
-from app.workers import attendance_tasks
+from app.workers import attendance_tasks, recording_tasks
 
 router = APIRouter(tags=["webhooks"])
 
@@ -98,6 +98,16 @@ async def _handle_event(db: AsyncSession, event: dict) -> None:
     elif name == "meeting.ended":
         await _mark_ended(db, zoom_uuid, parse_zoom_time(obj.get("end_time")))
         attendance_tasks.schedule_reconcile(zoom_uuid)
+    elif name == "recording.completed":
+        await _upsert_meeting(db, zoom_uuid, obj)
+        meeting = await db.scalar(select(Meeting).where(Meeting.zoom_uuid == zoom_uuid))
+        if meeting is not None:
+            meeting.recording_status = "pending"
+        download_token = event.get("download_token") or (
+            (event.get("payload") or {}).get("download_token")
+        )
+        recording_files = obj.get("recording_files") or []
+        recording_tasks.schedule_ingest(zoom_uuid, download_token, recording_files)
 
     await db.commit()
 
