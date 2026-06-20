@@ -73,6 +73,7 @@ def create_app() -> FastAPI:
         assignments,
         auth,
         courses,
+        dashboard,
         leaderboard,
         live,
         notes,
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
     app.include_router(webhooks.router, prefix="/api")
     app.include_router(leaderboard.router, prefix="/api")
     app.include_router(notes.router, prefix="/api")
+    app.include_router(dashboard.router, prefix="/api")
 
     _mount_frontend(app)
     return app
