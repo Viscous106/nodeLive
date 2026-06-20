@@ -1,10 +1,11 @@
-"""Seed local dev data: 1 instructor, 2 students, 1 course, 5 sessions.
+"""Seed local dev data: 1 instructor, 2 students, 1 course, 6 sessions
+(one of them LIVE so the live-meeting page is click-through testable).
 
     python -m scripts.seed
 
-Idempotent — re-running does nothing if the instructor already exists. Lets
-Dev B exercise the live-meeting flow without provisioning real Zoom meetings.
-Dev login password for all seeded users: ``password123``.
+Idempotent — the bulk seed runs once (keyed on the instructor), but a LIVE
+session is *always* ensured so re-runs on an existing DB still get a joinable
+class. Dev login password for all seeded users: ``password123``.
 """
 
 import asyncio
@@ -18,6 +19,30 @@ from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.user import User, UserRole
 
 _PASSWORD = "password123"
+_COURSE_ID = "seed-course-dbms"
+_INSTRUCTOR_ID = "seed-instructor"
+_LIVE_SESSION_ID = "seed-session-live"
+
+
+async def _ensure_live_session(db) -> None:
+    """Create a LIVE session if one doesn't exist (idempotent). Lets both the
+    instructor *and* enrolled students reach `/live/:id` for the demo."""
+    if await db.get(ClassSession, _LIVE_SESSION_ID) is not None:
+        return
+    db.add(
+        ClassSession(
+            id=_LIVE_SESSION_ID,
+            course_id=_COURSE_ID,
+            host_id=_INSTRUCTOR_ID,
+            title="Live Now — Databases Demo",
+            scheduled_at=datetime.now(UTC),
+            duration_mins=90,
+            zoom_meeting_id="8800000099",
+            status=SessionStatus.LIVE,
+        )
+    )
+    await db.commit()
+    print(f"Ensured LIVE session '{_LIVE_SESSION_ID}' for live-page testing.")
 
 
 async def seed() -> None:
@@ -26,7 +51,8 @@ async def seed() -> None:
             select(User).where(User.email == "instructor@linkhq.dev")
         )
         if existing is not None:
-            print("Seed data already present — nothing to do.")
+            print("Seed data already present — ensuring a LIVE session.")
+            await _ensure_live_session(db)
             return
 
         instructor = User(
@@ -82,10 +108,11 @@ async def seed() -> None:
             for u in (instructor, *students)
         )
         await db.commit()
+        await _ensure_live_session(db)
 
     print(
         "Seeded: 1 instructor, 2 students, 1 course, "
-        f"{len(sessions)} sessions (password: {_PASSWORD})."
+        f"{len(sessions) + 1} sessions incl. 1 LIVE (password: {_PASSWORD})."
     )
 
 

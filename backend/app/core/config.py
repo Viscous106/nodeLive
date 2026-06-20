@@ -6,6 +6,7 @@ Every value has a local-dev default so the app boots out of the box after
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +21,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "linkHQ"
     ENV: str = "development"
     DEBUG: bool = True
+    # Path to the built frontend (set in the Docker image to serve the SPA from
+    # the API origin). Empty in local dev — Vite serves the frontend separately.
+    FRONTEND_DIST: str = ""
 
     # --- Database ---
     # Async URL used by the app (goes through PgBouncer in prod).
@@ -57,6 +61,22 @@ class Settings(BaseSettings):
     # --- AI ---
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
+
+    @field_validator("DATABASE_URL", "DIRECT_DATABASE_URL", mode="after")
+    @classmethod
+    def _force_asyncpg(cls, v: str | None) -> str | None:
+        """Managed hosts (Fly/Render/Heroku) hand out `postgres://…` — coerce to
+        the async driver SQLAlchemy/asyncpg need."""
+        if not v:
+            return v
+        for prefix in ("postgresql+asyncpg://", "postgresql+psycopg://"):
+            if v.startswith(prefix):
+                return v
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     @property
     def cors_origins(self) -> list[str]:

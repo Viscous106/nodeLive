@@ -1,0 +1,54 @@
+# Render Blueprint — card-free staging deploy.
+#
+# One free web service (builds the Dockerfile → serves SPA + API + WebSocket and
+# runs the Celery worker in-process), plus free Postgres + free Key Value (Redis).
+# Render's free tier has no standalone worker, so the worker rides in the web
+# container — fine for staging (it sleeps with the web service when idle).
+#
+# Deploy: push this file, then Render → New → Blueprint → pick this repo.
+
+databases:
+  - name: linkhq-db
+    plan: free
+
+services:
+  - type: keyvalue
+    name: linkhq-redis
+    plan: free
+    ipAllowList: []            # internal-only (no public access)
+    maxmemoryPolicy: noeviction
+
+  - type: web
+    name: linkhq
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    # Start command comes from the image CMD (backend/start.sh): migrate →
+    # Celery worker (background) → web server. No dockerCommand override (Render
+    # mangles inline shell quoting; a script file is reliable).
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: linkhq-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: linkhq-redis
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true     # Render generates a strong secret
+      - key: COOKIE_SECURE
+        value: "true"           # HTTPS-only cookie (Render serves HTTPS)
+      - key: ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Optional — set these in the dashboard (not in git):
+      #   ANTHROPIC_API_KEY  → real AI chat
+      #   ZOOM_SDK_KEY / ZOOM_SDK_SECRET → real Zoom video
+      #   ZOOM_WEBHOOK_SECRET_TOKEN / ZOOM_S2S_* → M6 attendance webhooks

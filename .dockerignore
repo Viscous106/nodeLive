@@ -1,0 +1,13 @@
+# Keep the build context small and never ship secrets/venvs.
+.git
+**/.venv
+**/.venv312
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.ccg
+**/.pytest_cache
+**/.ruff_cache
+**/dist
+backend/.env
+*.log
