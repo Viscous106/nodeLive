@@ -10,9 +10,12 @@ Dev A and Dev B build them.
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.core.config import settings
@@ -43,6 +46,16 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    @app.middleware("http")
+    async def cross_origin_isolation(request: Request, call_next):
+        """COOP/COEP — required for the Zoom SDK's SharedArrayBuffer/WASM.
+        In local dev Vite sets these; in the bundled deploy the API serves the
+        SPA, so the headers must come from here."""
+        response = await call_next(request)
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        return response
+
     @app.get("/health", tags=["health"])
     async def health() -> dict[str, str]:
         """Liveness probe — no dependencies, always cheap."""
@@ -65,7 +78,30 @@ def create_app() -> FastAPI:
     app.include_router(live.router, prefix="/api")
     app.include_router(webhooks.router, prefix="/api")
 
+    _mount_frontend(app)
     return app
+
+
+def _mount_frontend(app: FastAPI) -> None:
+    """Serve the built SPA from the API origin (same-origin → cookies/CORS just
+    work). No-op in local dev where FRONTEND_DIST is unset and Vite serves it.
+    """
+    dist = Path(settings.FRONTEND_DIST) if settings.FRONTEND_DIST else None
+    if not (dist and dist.is_dir()):
+        return
+
+    app.mount("/assets", StaticFiles(directory=str(dist / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa(full_path: str) -> FileResponse:
+        # API/socket paths are handled above (socket.io sits outside FastAPI);
+        # anything else falls back to index.html so client-side routing works.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = dist / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(dist / "index.html")
 
 
 app = create_app()

@@ -8,7 +8,10 @@
 
 import { io, type Socket } from 'socket.io-client'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:8000'
+// Dev: backend on :8000. Prod: same origin as the served SPA. Override with VITE_SOCKET_URL.
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL ??
+  (import.meta.env.DEV ? 'http://localhost:8000' : window.location.origin)
 
 let socket: Socket | null = null
 

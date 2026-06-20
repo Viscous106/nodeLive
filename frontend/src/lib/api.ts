@@ -6,7 +6,10 @@
  * - JSON in, JSON out; pass `FormData` directly for file uploads.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+// Dev: Vite (:5173) talks to the backend on :8000. Prod: the backend serves
+// the SPA, so requests are same-origin (relative URLs). Override with VITE_API_URL.
+const BASE_URL =
+  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '')
 
 export class ApiError extends Error {
   constructor(

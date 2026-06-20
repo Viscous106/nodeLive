@@ -1,0 +1,27 @@
+# Fly.io deployment — single image, two process groups (web + Celery worker).
+# Postgres + Redis are attached separately (see DEPLOY.md). Rename `app` first.
+
+app = "linkhq"
+primary_region = "iad"
+
+[build]
+
+# Run migrations once per deploy, before the new machines take traffic.
+[deploy]
+  release_command = "alembic upgrade head"
+
+[processes]
+  web = "uvicorn app.main:socket_app --host 0.0.0.0 --port 8080"
+  worker = "celery -A app.workers.celery_app worker --loglevel=info"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1   # keep 1 web up so WebSockets don't cold-start mid-class
+  processes = ["web"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
