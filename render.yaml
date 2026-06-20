@@ -22,6 +22,7 @@ services:
     name: linkhq
     runtime: docker
     plan: free
+    branch: main              # deploy from main (not deploy/staging)
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /health
