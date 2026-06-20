@@ -194,3 +194,45 @@ async def test_meeting_ended_schedules_reconcile(client, session, scheduled):
     assert scheduled == ["U9"]
     m = await session.scalar(select(Meeting).where(Meeting.zoom_uuid == "U9"))
     assert m.ended_at is not None
+
+
+async def test_recording_completed_marks_pending_and_schedules(
+    client, session, scheduled, monkeypatch
+):
+    from app.workers import recording_tasks
+
+    captured = {}
+
+    def fake_schedule(uuid, token, files):
+        captured["args"] = (uuid, token, files)
+
+    monkeypatch.setattr(recording_tasks, "schedule_ingest", fake_schedule)
+
+    event = {
+        "event": "recording.completed",
+        "event_ts": 7,
+        "download_token": "dl-tok",
+        "payload": {
+            "object": {
+                "uuid": "rec-uuid-1",
+                "id": "82912345678",
+                "topic": "DB Indexing",
+                "recording_files": [
+                    {
+                        "file_type": "MP4",
+                        "recording_type": "shared_screen_with_speaker_view",
+                        "download_url": "https://zoom.us/rec/x.mp4",
+                    }
+                ],
+            }
+        },
+    }
+    resp = await _post(client, event)
+    assert resp.status_code == 200
+
+    m = await session.scalar(select(Meeting).where(Meeting.zoom_uuid == "rec-uuid-1"))
+    assert m is not None
+    assert m.recording_status == "pending"
+    assert captured["args"][0] == "rec-uuid-1"
+    assert captured["args"][1] == "dl-tok"
+    assert captured["args"][2][0]["download_url"] == "https://zoom.us/rec/x.mp4"
