@@ -10,6 +10,7 @@ dist/
 build/
 .mypy_cache/
 .ruff_cache/
+.ccg/            # local code-tooling scratch dir — never commit
 .pytest_cache/
 htmlcov/
 .coverage
