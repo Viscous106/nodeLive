@@ -23,7 +23,7 @@ UI, admin. Shared seams are called out per milestone.
 |---|---|---|
 | M1 Zoom JWT + intervals | Phase 0/1 | ✅ done (PR #10) |
 | M2 Realtime backbone | Phase 1 | ✅ done (PR #11) |
-| M3 Live feature APIs | Phase 1/2 | |
+| M3 Live feature APIs | Phase 1/2 | ✅ done (PR #12) |
 | M4 Frontend live page | Phase 1/2 | |
 | M5 Live AI chat + polish | Phase 4 (live) | |
 | M6 Webhooks + attendance reconcile | compliance (Phase 3/5) | |
@@ -54,11 +54,19 @@ UI, admin. Shared seams are called out per milestone.
 
 ## M3 — Live feature APIs + socket events · _Phase 1/2_
 
-- [ ] Cue cards (`cuecard:shown`), Polls (`poll:launched|results|closed`)
-- [ ] Quiz: create + launch + **Celery** question timer + scoring (`quiz:*`, `leaderboard:update`)
-- [ ] Notices, Pinned message, Raise hand (ephemeral), Bookmarks, Assignment unlock · **seam:** `assignment:unlocked` consumed by Dev A's assignments
+- [x] Cue cards (`cuecard:shown`), Polls (`poll:launched|results|closed`)
+- [x] Quiz: create + launch + **Celery** question timer + scoring (`quiz:*`, `leaderboard:update`)
+- [x] Notices, Pinned message, Raise hand (ephemeral), Bookmarks, Assignment unlock · **seam:** `assignment:unlocked` consumed by Dev A's assignments
 
-**DoD:** every event round-trips to the right room; quiz scoring + poll percentages have pytest coverage; handlers idempotent.
+**DoD:** ✅ every event round-trips to the right room; quiz scoring + poll percentages have pytest coverage; handlers idempotent.
+
+_Notes:_ leaderboard points are awarded only on the **first** response insert
+(poll re-vote / quiz re-answer / reconnect can't double-count); quiz timing is
+server-authoritative (`quizzes.launched_at` + position × `time_limit_secs`), so a
+late answer scores 0; the timed rotation is scheduled all-at-launch as Celery
+`quiz.emit_event` tasks (no correct answer ever leaves the server). **Follow-up
+for M4:** `/live/state` doesn't yet carry the in-flight question + remaining time,
+so a mid-quiz reconnect waits for the next rotation — surface this in the live page.
 
 ## M4 — Frontend live-meeting page · _Phase 1/2_
 

@@ -113,6 +113,12 @@ class Quiz(Base):
         default=QuizStatus.DRAFT,
         nullable=False,
     )
+    # Set when the instructor launches the quiz; question N is live during
+    # [launched_at + N*time_limit, launched_at + (N+1)*time_limit). The respond
+    # route derives time-remaining from this so scoring is server-authoritative.
+    launched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

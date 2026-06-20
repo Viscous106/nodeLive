@@ -16,7 +16,7 @@ celery_app = Celery(
     "linkhq",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=[],  # e.g. "app.workers.tasks.ai_summary" — added per feature
+    include=["app.workers.quiz_tasks"],  # more added per feature
 )
 
 celery_app.conf.update(

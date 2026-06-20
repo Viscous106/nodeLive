@@ -21,7 +21,7 @@ from app.models.course import ClassSession
 from app.models.user import User, UserRole
 from app.realtime.auth import resolve_user_id_from_environ
 from app.realtime.captions import buffer_caption
-from app.realtime.rooms import compute_rooms
+from app.realtime.rooms import compute_rooms, instructor_room, session_room
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
@@ -72,6 +72,35 @@ async def caption_received(sid: str, data: dict) -> None:
     text = data.get("text")
     if session_id and text:
         await buffer_caption(_redis, session_id, text, data.get("timestamp", 0))
+
+
+@sio.event
+async def raise_hand_up(sid: str, data: dict) -> None:
+    """Student raises a hand — notify only the instructor room (ephemeral)."""
+    session = await sio.get_session(sid)
+    user_id = session.get("user_id")
+    session_id = (data or {}).get("sessionId")
+    if not user_id or not session_id:
+        return
+    await sio.emit(
+        "raise_hand:up",
+        {"userId": user_id, "name": (data or {}).get("name")},
+        room=instructor_room(session_id),
+    )
+
+
+@sio.event
+async def raise_hand_down(sid: str, data: dict) -> None:
+    """Hand lowered (by the student, or the instructor calling on them)."""
+    session = await sio.get_session(sid)
+    user_id = session.get("user_id")
+    data = data or {}
+    session_id = data.get("sessionId")
+    if not user_id or not session_id:
+        return
+    # An instructor can lower someone else's hand; default to the caller's.
+    target = data.get("userId", user_id)
+    await sio.emit("raise_hand:down", {"userId": target}, room=session_room(session_id))
 
 
 @sio.event
