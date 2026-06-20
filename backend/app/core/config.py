@@ -47,6 +47,7 @@ class Settings(BaseSettings):
 
     # --- AI ---
     ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
 
     @property
     def cors_origins(self) -> list[str]:

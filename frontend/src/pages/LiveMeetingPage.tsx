@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -7,6 +7,7 @@ import { LiveMeetingTopBar } from '@/components/live-meeting/LiveMeetingTopBar'
 import { ZoomPanel } from '@/components/live-meeting/ZoomPanel'
 import { CueCardOverlay } from '@/components/live-meeting/overlays/CueCardOverlay'
 import { NoticeOverlay } from '@/components/live-meeting/overlays/NoticeOverlay'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageLoader } from '@/components/ui/PageLoader'
 import { useAuth } from '@/hooks/useAuth'
 import { useLiveState } from '@/hooks/useLiveState'
@@ -33,6 +34,7 @@ export default function LiveMeetingPage() {
     user ?? null,
   )
 
+  const [confirmingLeave, setConfirmingLeave] = useState(false)
   const reset = useLiveClassStore((s) => s.reset)
   const tick = useLiveClassStore((s) => s.tick)
   const activeQuestion = useLiveClassStore((s) => s.activeQuestion)
@@ -51,8 +53,8 @@ export default function LiveMeetingPage() {
     user && (user.role !== 'STUDENT' || session?.hostId === user.id),
   )
 
-  const leave = async () => {
-    if (!window.confirm('Leave the class?')) return
+  const confirmLeave = async () => {
+    setConfirmingLeave(false)
     await leaveMeeting()
     navigate('/dashboard')
   }
@@ -75,7 +77,10 @@ export default function LiveMeetingPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-black">
-      <LiveMeetingTopBar session={session} onLeave={leave} />
+      <LiveMeetingTopBar
+        session={session}
+        onLeave={() => setConfirmingLeave(true)}
+      />
       <div className="flex min-h-0 flex-1">
         <div className="relative flex flex-1">
           <ZoomPanel
@@ -94,6 +99,14 @@ export default function LiveMeetingPage() {
         />
       </div>
       <NoticeOverlay />
+      <ConfirmDialog
+        open={confirmingLeave}
+        title="Leave the class?"
+        description="You can rejoin while the session is live."
+        confirmLabel="Leave"
+        onConfirm={confirmLeave}
+        onCancel={() => setConfirmingLeave(false)}
+      />
     </div>
   )
 }
