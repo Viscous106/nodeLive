@@ -29,6 +29,13 @@ from app.models.live_meeting import (
     QuizResponse,
     QuizStatus,
 )
+from app.models.org import (
+    DEFAULT_ORG_SLUG,
+    Invitation,
+    InvitationStatus,
+    Membership,
+    Organization,
+)
 from app.models.user import User, UserRole
 
 __all__ = [
@@ -61,4 +68,9 @@ __all__ = [
     "WebhookEvent",
     "LectureNote",
     "NoteKind",
+    "Organization",
+    "Membership",
+    "Invitation",
+    "InvitationStatus",
+    "DEFAULT_ORG_SLUG",
 ]

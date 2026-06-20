@@ -3,6 +3,8 @@
 Identity lives in an HttpOnly session cookie carrying a short-lived JWT.
 """
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,8 +14,10 @@ from app.auth.security import hash_password, verify_password
 from app.auth.tokens import create_access_token
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.user import User
+from app.models.org import Invitation, InvitationStatus
+from app.models.user import User, UserRole
 from app.schemas.auth import LoginIn, SignupIn, UserOut
+from app.services.roles import assign_role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,6 +34,24 @@ def _set_session_cookie(response: Response, token: str) -> None:
     )
 
 
+async def _resolve_invite(db: AsyncSession, token: str, email: str) -> Invitation:
+    """Validate an invite token against the signup email (email-locked).
+
+    A shareable link, but only the invited email may accept it.
+    """
+    invite = await db.scalar(select(Invitation).where(Invitation.token == token))
+    bad = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired invitation"
+    )
+    if invite is None or invite.status is not InvitationStatus.PENDING:
+        raise bad
+    if invite.expires_at is not None and invite.expires_at < datetime.now(UTC):
+        raise bad
+    if invite.email.lower() != email.lower():
+        raise bad
+    return invite
+
+
 @router.post("/signup", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def signup(
     body: SignupIn,
@@ -42,12 +64,26 @@ async def signup(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
         )
+
+    invite = (
+        await _resolve_invite(db, body.invite_token, body.email)
+        if body.invite_token
+        else None
+    )
+    role = invite.role if invite else UserRole.STUDENT
+
     user = User(
         email=body.email,
         hashed_password=hash_password(body.password),
         display_name=body.display_name,
     )
     db.add(user)
+    await db.flush()
+    # One service writes membership + the User.role mirror together.
+    await assign_role(db, user, role)
+    if invite is not None:
+        invite.status = InvitationStatus.ACCEPTED
+        invite.accepted_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(user)
     _set_session_cookie(response, create_access_token(user.id))

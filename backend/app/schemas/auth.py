@@ -18,6 +18,7 @@ class SignupIn(CamelModel):
     email: EmailStr
     password: str
     display_name: str
+    invite_token: str | None = None
 
 
 class LoginIn(CamelModel):

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.tokens import JWTError, decode_token
 from app.core.config import settings
 from app.db.session import get_db
+from app.models.org import Membership, Organization
 from app.models.user import User, UserRole
 
 _UNAUTH = HTTPException(
@@ -44,5 +45,46 @@ def require_role(*roles: UserRole):
                 detail="Insufficient role",
             )
         return user
+
+    return _guard
+
+
+# --- Org-membership guards (additive; used by the admin surface only) ---------
+# Legacy guards above keep reading the synced `User.role`; these read the new
+# membership so the admin dashboard is org-role-gated and multi-tenant-ready.
+
+
+async def get_current_membership(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Membership:
+    """The current user's membership in the default org (lazily backfilled)."""
+    from app.services.roles import get_or_create_membership
+
+    membership = await get_or_create_membership(db, user)
+    await db.commit()
+    return membership
+
+
+async def get_default_org(db: AsyncSession = Depends(get_db)) -> Organization:
+    from app.services.roles import get_or_create_default_org
+
+    org = await get_or_create_default_org(db)
+    await db.commit()
+    return org
+
+
+def require_org_role(*roles: UserRole):
+    """Dependency factory: 403 unless the membership role is one of `roles`."""
+
+    async def _guard(
+        membership: Membership = Depends(get_current_membership),
+    ) -> Membership:
+        if membership.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient role",
+            )
+        return membership
 
     return _guard

@@ -17,6 +17,7 @@ from app.auth.security import hash_password
 from app.db.session import AsyncSessionLocal
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.user import User, UserRole
+from app.services.roles import assign_role, get_or_create_membership
 
 _PASSWORD = "password123"
 _COURSE_ID = "seed-course-dbms"
@@ -75,6 +76,13 @@ async def seed() -> None:
         course = Course(id="seed-course-dbms", title="Databases")
         db.add_all([instructor, *students, course])
         await db.flush()
+
+        # Default org + memberships. The seeded instructor is the org ADMIN so
+        # the admin dashboard has someone to log in as (writes membership +
+        # the User.role mirror together).
+        await assign_role(db, instructor, UserRole.ADMIN)
+        for s in students:
+            await get_or_create_membership(db, s)
 
         now = datetime.now(UTC)
         sessions = [

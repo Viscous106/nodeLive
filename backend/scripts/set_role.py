@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from app.db.session import AsyncSessionLocal
 from app.models.user import User, UserRole
+from app.services.roles import assign_role
 
 
 async def set_role(email: str, role: str) -> None:
@@ -29,7 +30,8 @@ async def set_role(email: str, role: str) -> None:
         if user is None:
             print(f"No user with email {email!r}.")
             raise SystemExit(1)
-        user.role = new_role
+        # Writes both membership.role and the User.role mirror.
+        await assign_role(db, user, new_role)
         await db.commit()
         print(f"✓ {email} is now {new_role.value}")
 

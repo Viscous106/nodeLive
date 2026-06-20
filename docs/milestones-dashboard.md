@@ -101,11 +101,11 @@ watch-tracking). Shared seams are called out per milestone.
 
 Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpowers/specs/2026-06-20-admin-dashboard-design.md) (Part A). **Prerequisite for AD.**
 
-- [ ] `Organization` + `Membership` (user↔org↔role, reuses `UserRole`) + `Invitation` models + migration that backfills memberships from `users.role` (**keeps `users.role`** as a synced mirror — expand-contract)
-- [ ] **Additive** `get_current_membership` / `require_org_role(*roles)` for the admin surface only; existing guards/`UserOut`/frontend untouched (still read the synced `users.role`)
-- [ ] One role-write service updates `membership.role` + the `users.role` mirror; invite (email-locked link) + `POST /signup?inviteToken`; seed/`set_role` write both · **seam:** flag the new models to Dev A; the later **contract** step (drop `users.role`) is coordinated
+- [x] `Organization` + `Membership` (user↔org↔role, reuses `UserRole`) + `Invitation` models + reversible migration that inserts the default org and backfills memberships from `users.role` (**keeps `users.role`** as a synced mirror — expand-contract)
+- [x] **Additive** `get_current_membership` / `get_default_org` / `require_org_role(*roles)` for the admin surface only; existing guards/`UserOut`/frontend untouched (still read the synced `users.role`)
+- [x] One role-write service (`services/roles.py`) updates `membership.role` + the `users.role` mirror together; invite (email-locked link) honored at `POST /api/auth/signup` via `inviteToken`; seed (instructor → org ADMIN) + `set_role` write both · `count_org_admins` ready for the AD last-admin guard · **seam:** new org/membership models flagged to Dev A; the later **contract** step (drop `users.role`) is coordinated
 
-**DoD:** non-breaking (all existing tests green, untouched); admin `require_org_role` gates; invite→signup assigns role; promote syncs both + blocks last-admin demotion; backfill migration round-trips.
+**DoD:** ✅ non-breaking (131 tests green, existing untouched); `require_org_role` gates; invite→signup assigns role (mismatch/expired/revoked rejected); role writes sync membership + mirror; backfill migration round-trips (up→down→up clean, 1:1 backfill verified). Admin endpoints + last-admin demotion guard land in **AD**.
 
 ## AD — Admin Dashboard · _Phase 3/4/6 — consolidates M7 + M9_
 
