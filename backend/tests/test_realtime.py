@@ -71,3 +71,5 @@ def test_socket_handlers_registered():
     assert "connect" in handlers
     assert "join_session" in handlers
     assert "caption_received" in handlers
+    assert "raise_hand_up" in handlers
+    assert "raise_hand_down" in handlers
