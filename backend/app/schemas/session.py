@@ -20,6 +20,7 @@ class ClassSessionOut(CamelModel):
 
 class ClassSessionCreate(CamelModel):
     course_id: str
+    host_id: str | None = None  # admin can assign a different instructor as host
     title: str
     description: str | None = None
     scheduled_at: datetime

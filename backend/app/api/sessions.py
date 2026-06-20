@@ -45,9 +45,20 @@ async def create_session(
     """
     if await db.get(Course, body.course_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
+
+    host_id = user.id
+    if user.role is UserRole.ADMIN and body.host_id:
+        host = await db.get(User, body.host_id)
+        if host is None or host.role not in (UserRole.INSTRUCTOR, UserRole.ADMIN):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Host must be an instructor or admin",
+            )
+        host_id = body.host_id
+
     cs = ClassSession(
         course_id=body.course_id,
-        host_id=user.id,
+        host_id=host_id,
         title=body.title,
         description=body.description,
         scheduled_at=body.scheduled_at,
