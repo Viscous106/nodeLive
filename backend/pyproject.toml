@@ -7,7 +7,11 @@ requires-python = ">=3.12"
 [tool.ruff]
 target-version = "py312"
 line-length = 88
-extend-exclude = [".venv", "alembic/versions"]
+# Never lint a stray virtualenv that lands in the tree (CI runners can leave a
+# `.venvNNN/` behind that git-clean misses); force-exclude makes it stick even
+# when files are passed explicitly.
+extend-exclude = [".venv", ".venv*", "venv", "venv*", "alembic/versions"]
+force-exclude = true
 
 [tool.ruff.lint]
 # pycodestyle, pyflakes, isort, pyupgrade, bugbear, comprehensions, simplify
