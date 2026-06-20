@@ -16,6 +16,7 @@ const SessionsPage = lazy(() => import('@/pages/SessionsPage'))
 const LeaderboardPage = lazy(() => import('@/pages/LeaderboardPage'))
 const SessionDetailPage = lazy(() => import('@/pages/SessionDetailPage'))
 const LiveMeetingPage = lazy(() => import('@/pages/LiveMeetingPage'))
+const RecordingPlayerPage = lazy(() => import('@/pages/RecordingPlayerPage'))
 const AdminPage = lazy(() => import('@/pages/AdminPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
       { path: '/leaderboard', element: <Lazy><LeaderboardPage /></Lazy> },
       { path: '/session/:sessionId', element: <Lazy><SessionDetailPage /></Lazy> },
       { path: '/live/:sessionId', element: <Lazy><LiveMeetingPage /></Lazy> },
+      { path: '/session/:sessionId/recording', element: <Lazy><RecordingPlayerPage /></Lazy> },
     ],
   },
   {
