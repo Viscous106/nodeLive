@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
-import { Hand, Pin } from 'lucide-react'
+import { Hand, Pin, Sparkles } from 'lucide-react'
 
 import { RaiseHandQueue } from '@/components/live-meeting/instructor/RaiseHandQueue'
 import { Button } from '@/components/ui/button'
+import { useAiStream } from '@/hooks/useAiStream'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 import { useLiveClassStore } from '@/stores/liveClassStore'
@@ -27,8 +28,8 @@ export function ChatPanel({ sessionId, user, isInstructor }: Props) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 text-sm text-white/50">
-        <p>AI chat with live transcript context arrives in M5.</p>
+      <div className="min-h-0 flex-1">
+        <AiChat sessionId={sessionId} />
       </div>
 
       {isInstructor ? (
@@ -40,7 +41,61 @@ export function ChatPanel({ sessionId, user, isInstructor }: Props) {
   )
 }
 
-function StudentRaiseHand({ sessionId, user }: { sessionId: string; user: User | null }) {
+function AiChat({ sessionId }: { sessionId: string }) {
+  const { response, isStreaming, send } = useAiStream(sessionId)
+  const [question, setQuestion] = useState('')
+
+  const ask = () => {
+    const q = question.trim()
+    if (!q || isStreaming) return
+    send(q)
+    setQuestion('')
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm">
+        {!response && !isStreaming ? (
+          <p className="flex items-center gap-2 text-white/40">
+            <Sparkles size={14} /> Ask the AI about this lecture — it uses the
+            live transcript for context.
+          </p>
+        ) : (
+          <div className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-white/90">
+            <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary-light">
+              <Sparkles size={12} /> AI assistant
+            </p>
+            <p className="whitespace-pre-wrap">
+              {response}
+              {isStreaming && <span className="animate-pulse">▋</span>}
+            </p>
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2 border-t border-white/10 p-3">
+        <input
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && ask()}
+          placeholder="Ask the AI…"
+          disabled={isStreaming}
+          className="flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 disabled:opacity-50"
+        />
+        <Button size="sm" onClick={ask} disabled={isStreaming}>
+          Ask
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function StudentRaiseHand({
+  sessionId,
+  user,
+}: {
+  sessionId: string
+  user: User | null
+}) {
   const [raised, setRaised] = useState(false)
 
   const toggle = () => {
