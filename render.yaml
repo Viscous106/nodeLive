@@ -48,7 +48,11 @@ services:
         value: "false"
       - key: PYTHONUNBUFFERED
         value: "1"
-      # Optional — set these in the dashboard (not in git):
-      #   ANTHROPIC_API_KEY  → real AI chat
-      #   ZOOM_SDK_KEY / ZOOM_SDK_SECRET → real Zoom video
-      #   ZOOM_WEBHOOK_SECRET_TOKEN / ZOOM_S2S_* → M6 attendance webhooks
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ZOOM_SDK_KEY
+        sync: false
+      - key: ZOOM_SDK_SECRET
+        sync: false
+      - key: ZOOM_WEBHOOK_SECRET_TOKEN
+        sync: false
