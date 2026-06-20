@@ -116,6 +116,20 @@ export function useAdminCourses() {
   })
 }
 
+export function useCreateCourse() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (title: string) =>
+      api.post<Course>('/api/admin/courses', { title }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'courses'] })
+      toast({ variant: 'success', title: 'Course created' })
+    },
+    onError: () =>
+      toast({ variant: 'error', title: 'Could not create the course.' }),
+  })
+}
+
 export function useCreateSession() {
   const qc = useQueryClient()
   return useMutation({

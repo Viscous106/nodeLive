@@ -1,4 +1,4 @@
-import { CalendarPlus, Pencil, X } from 'lucide-react'
+import { CalendarPlus, Pencil, Plus, X } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 
@@ -13,6 +13,7 @@ import {
   useAdminCourses,
   useAdminSessions,
   useCancelSession,
+  useCreateCourse,
   useCreateSession,
   useUpdateSession,
 } from '@/hooks/useAdmin'
@@ -163,12 +164,18 @@ export function SessionsTab() {
         <CardHeader>
           <CardTitle>{editingId ? 'Edit session' : 'Schedule a session'}</CardTitle>
         </CardHeader>
-        <CardContent>
-          {noCourses ? (
-            <p className="text-sm text-text-muted">
-              No courses exist yet. A course is needed before scheduling a session.
-            </p>
-          ) : (
+        <CardContent className="space-y-4">
+          {!editingId && (
+            <CourseCreator
+              prompt={
+                noCourses
+                  ? 'No courses yet — create one first, then schedule sessions into it.'
+                  : undefined
+              }
+              onCreated={(id) => setForm((f) => ({ ...f, courseId: id }))}
+            />
+          )}
+          {noCourses ? null : (
             <form onSubmit={onSubmit} className="space-y-3" noValidate>
               <div>
                 <Label htmlFor="s-course">Course</Label>
@@ -257,6 +264,49 @@ export function SessionsTab() {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function CourseCreator({
+  prompt,
+  onCreated,
+}: {
+  prompt?: string
+  onCreated: (courseId: string) => void
+}) {
+  const createCourse = useCreateCourse()
+  const [title, setTitle] = useState('')
+
+  function add(e: FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) return
+    createCourse.mutate(title.trim(), {
+      onSuccess: (course) => {
+        onCreated(course.id)
+        setTitle('')
+      },
+    })
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-dashed border-border p-3">
+      {prompt && <p className="text-sm text-text-muted">{prompt}</p>}
+      <form onSubmit={add} className="flex items-end gap-2">
+        <div className="flex-1">
+          <Label htmlFor="new-course">New course</Label>
+          <Input
+            id="new-course"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Databases"
+          />
+        </div>
+        <Button type="submit" variant="outline" disabled={createCourse.isPending}>
+          {createCourse.isPending ? <Spinner /> : <Plus className="h-4 w-4" />}
+          Add
+        </Button>
+      </form>
     </div>
   )
 }
