@@ -112,6 +112,7 @@ Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpow
 Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpowers/specs/2026-06-20-admin-dashboard-design.md) (Part B). `/admin`, ADMIN-only, built on **AF**. Phased: Members → Sessions → Attendance → Overview.
 
 - [x] **Members & Roles** tab — list members, promote/demote (last-admin guard), invite-by-link, revoke + invite-aware signup · `/api/admin/*` + `/admin` UI (12 backend tests)
+- [x] **No-shell bootstrap admin** — `BOOTSTRAP_ADMIN_EMAILS` (default `abhinav.singh@scaler.com`) auto-grants ADMIN on login/signup, so the first admin exists on the deployed instance without Shell access (4 tests)
 - [ ] **Sessions** tab — list/create/edit/cancel class sessions (real Zoom auto-create = fast-follow)
 - [ ] **Attendance** tab — per-session + per-student from `attendance_final` (empty until real Zoom creds feed M6 reconcile)
 - [ ] **Overview** tab — counts, recent activity, engagement snapshot (leaderboard / quiz-poll participation)
