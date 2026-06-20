@@ -11,6 +11,8 @@ class. Dev login password for all seeded users: ``password123``.
 import asyncio
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import select
+
 from app.auth.security import hash_password
 from app.db.session import AsyncSessionLocal
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
@@ -50,32 +52,45 @@ async def _ensure_live_session(db) -> None:
 
 async def seed() -> None:
     async with AsyncSessionLocal() as db:
-        instructor_exists = await db.get(User, _INSTRUCTOR_ID) is not None
-        course_exists = await db.get(Course, _COURSE_ID) is not None
-        if instructor_exists and course_exists:
+        # Load what already exists (keyed by stable IDs, not email).
+        instructor = await db.get(User, _INSTRUCTOR_ID)
+        course = await db.get(Course, _COURSE_ID)
+
+        if instructor is not None and course is not None:
             print("Seed data already present — ensuring a LIVE session.")
             await _ensure_live_session(db)
             return
 
-        instructor = User(
-            id="seed-instructor",
-            email="instructor@linkhq.dev",
-            hashed_password=hash_password(_PASSWORD),
-            display_name="Prof. Ada",
-            role=UserRole.INSTRUCTOR,
-        )
-        students = [
-            User(
-                id=f"seed-student-{i}",
-                email=f"student{i}@linkhq.dev",
+        # --- users -----------------------------------------------------------
+        if instructor is None:
+            instructor = User(
+                id=_INSTRUCTOR_ID,
+                email="instructor@linkhq.dev",
                 hashed_password=hash_password(_PASSWORD),
-                display_name=f"Student {i}",
-                role=UserRole.STUDENT,
+                display_name="Prof. Ada",
+                role=UserRole.INSTRUCTOR,
             )
-            for i in (1, 2)
-        ]
-        course = Course(id="seed-course-dbms", title="Databases")
-        db.add_all([instructor, *students, course])
+            db.add(instructor)
+
+        students = []
+        for i in (1, 2):
+            s = await db.get(User, f"seed-student-{i}")
+            if s is None:
+                s = User(
+                    id=f"seed-student-{i}",
+                    email=f"student{i}@linkhq.dev",
+                    hashed_password=hash_password(_PASSWORD),
+                    display_name=f"Student {i}",
+                    role=UserRole.STUDENT,
+                )
+                db.add(s)
+            students.append(s)
+
+        # --- course ----------------------------------------------------------
+        if course is None:
+            course = Course(id=_COURSE_ID, title="Databases")
+            db.add(course)
+
         await db.flush()
 
         # Default org + memberships. The seeded instructor is the org ADMIN so
@@ -85,43 +100,56 @@ async def seed() -> None:
         for s in students:
             await get_or_create_membership(db, s)
 
+        # --- sessions (skip any that already exist) --------------------------
         now = datetime.now(UTC)
-        sessions = [
-            ClassSession(
-                id=f"seed-session-up-{i}",
-                course_id=course.id,
-                host_id=instructor.id,
-                title=f"Upcoming Lecture {i}",
-                scheduled_at=now + timedelta(days=i),
-                duration_mins=90,
-                zoom_meeting_id=f"880000000{i}",
-                status=SessionStatus.SCHEDULED,
+        sessions_added = 0
+        for i in (1, 2):
+            if await db.get(ClassSession, f"seed-session-up-{i}") is None:
+                db.add(
+                    ClassSession(
+                        id=f"seed-session-up-{i}",
+                        course_id=course.id,
+                        host_id=instructor.id,
+                        title=f"Upcoming Lecture {i}",
+                        scheduled_at=now + timedelta(days=i),
+                        duration_mins=90,
+                        zoom_meeting_id=f"880000000{i}",
+                        status=SessionStatus.SCHEDULED,
+                    )
+                )
+                sessions_added += 1
+        for i in (1, 2, 3):
+            if await db.get(ClassSession, f"seed-session-past-{i}") is None:
+                db.add(
+                    ClassSession(
+                        id=f"seed-session-past-{i}",
+                        course_id=course.id,
+                        host_id=instructor.id,
+                        title=f"Past Lecture {i}",
+                        scheduled_at=now - timedelta(days=i),
+                        duration_mins=90,
+                        zoom_meeting_id=f"770000000{i}",
+                        status=SessionStatus.ENDED,
+                    )
+                )
+                sessions_added += 1
+
+        # --- enrollments (skip duplicates) -----------------------------------
+        for u in (instructor, *students):
+            existing_enr = await db.scalar(
+                select(Enrollment).where(
+                    Enrollment.user_id == u.id, Enrollment.course_id == course.id
+                )
             )
-            for i in (1, 2)
-        ] + [
-            ClassSession(
-                id=f"seed-session-past-{i}",
-                course_id=course.id,
-                host_id=instructor.id,
-                title=f"Past Lecture {i}",
-                scheduled_at=now - timedelta(days=i),
-                duration_mins=90,
-                zoom_meeting_id=f"770000000{i}",
-                status=SessionStatus.ENDED,
-            )
-            for i in (1, 2, 3)
-        ]
-        db.add_all(sessions)
-        db.add_all(
-            Enrollment(user_id=u.id, course_id=course.id)
-            for u in (instructor, *students)
-        )
+            if existing_enr is None:
+                db.add(Enrollment(user_id=u.id, course_id=course.id))
+
         await db.commit()
         await _ensure_live_session(db)
 
     print(
-        "Seeded: 1 instructor, 2 students, 1 course, "
-        f"{len(sessions) + 1} sessions incl. 1 LIVE (password: {_PASSWORD})."
+        f"Seed complete: {sessions_added} sessions created incl. LIVE "
+        f"(password: {_PASSWORD})."
     )
 
 
