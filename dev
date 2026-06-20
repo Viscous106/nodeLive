@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+#
+# dev — one-command build & run for linkHQ.
+#
+#   ./dev            build (if needed) + run the whole stack
+#   ./dev build      one-time setup: infra, backend venv+deps, DB migrate+seed, frontend deps
+#   ./dev up         alias for the default (build-if-needed + run)
+#   ./dev test       backend pytest (ruff) + frontend typecheck/build
+#   ./dev down       stop the docker infra (postgres + redis)
+#
+# Runs: Postgres + Redis (docker), FastAPI+socket.io (:8000), Celery worker,
+# Vite dev server (:5173). Ctrl+C stops everything it started.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND="$ROOT/backend"
+FRONTEND="$ROOT/frontend"
+
+c() { printf '\033[1;36m[dev]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[dev] %s\033[0m\n' "$*"; }
+die() { printf '\033[1;31m[dev] %s\033[0m\n' "$*" >&2; exit 1; }
+
+# --- docker compose (v2 `docker compose` or legacy `docker-compose`) ---------
+compose() {
+  if docker compose version >/dev/null 2>&1; then docker compose "$@"
+  elif command -v docker-compose >/dev/null 2>&1; then docker-compose "$@"
+  else return 1; fi
+}
+
+# --- pick a Python >= 3.12 for creating the venv ----------------------------
+pick_python() {
+  local cands=(python3.12 "$HOME/.pyenv/versions/3.12"*/bin/python python3)
+  for p in "${cands[@]}"; do
+    command -v "$p" >/dev/null 2>&1 || [ -x "$p" ] || continue
+    if "$p" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3,12) else 1)' 2>/dev/null; then
+      echo "$p"; return 0
+    fi
+  done
+  return 1
+}
+
+# --- resolve which venv to use (reuse a working one, else create .venv) -----
+VENV=""
+resolve_venv() {
+  for v in "$BACKEND/.venv" "$BACKEND/.venv312"; do
+    [ -x "$v/bin/uvicorn" ] && { VENV="$v"; return; }
+  done
+  VENV="$BACKEND/.venv"
+}
+
+ensure_backend_deps() {
+  resolve_venv
+  if [ ! -x "$VENV/bin/uvicorn" ]; then
+    local py; py="$(pick_python)" || die "Need Python >= 3.12 (pyenv install 3.12)."
+    c "creating backend venv ($py) at $VENV"
+    "$py" -m venv "$VENV"
+    c "installing backend dependencies…"
+    "$VENV/bin/python" -m pip install -q --upgrade pip
+    "$VENV/bin/python" -m pip install -q -r "$BACKEND/requirements.txt"
+  fi
+  c "backend venv: $VENV"
+}
+
+# --- infra: postgres + redis -------------------------------------------------
+tcp_open() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null && exec 3>&- 3<&-; }
+
+ensure_infra() {
+  if tcp_open 5432 && tcp_open 6379; then
+    c "postgres + redis already reachable — reusing"
+  elif [ -f "$ROOT/docker-compose.yml" ] && compose version >/dev/null 2>&1; then
+    c "starting postgres + redis (docker compose)…"
+    compose up -d postgres redis
+    c "waiting for postgres…"
+    for _ in $(seq 1 30); do tcp_open 5432 && break; sleep 1; done
+  else
+    warn "Postgres :5432 / Redis :6379 not reachable and no docker compose available."
+    warn "Start them first (e.g. 'docker compose up -d postgres redis')."
+  fi
+}
+
+ensure_db() {
+  c "applying migrations (alembic upgrade head)…"
+  ( cd "$BACKEND" && "$VENV/bin/alembic" upgrade head )
+  c "seeding dev data (idempotent)…"
+  ( cd "$BACKEND" && "$VENV/bin/python" -m scripts.seed )
+}
+
+ensure_frontend_deps() {
+  if [ ! -d "$FRONTEND/node_modules" ]; then
+    c "installing frontend dependencies (npm install)…"
+    ( cd "$FRONTEND" && npm install )
+  fi
+}
+
+cmd_build() {
+  ensure_backend_deps
+  ensure_infra
+  ensure_db
+  ensure_frontend_deps
+  c "build complete."
+}
+
+cmd_up() {
+  cmd_build
+  local pids=()
+  cleanup() { c "stopping…"; kill "${pids[@]}" 2>/dev/null || true; }
+  trap cleanup EXIT INT TERM
+
+  c "starting backend  → http://localhost:8000  (docs: /docs)"
+  ( cd "$BACKEND" && exec "$VENV/bin/uvicorn" app.main:socket_app --reload --port 8000 ) &
+  pids+=($!)
+
+  c "starting worker   → celery"
+  ( cd "$BACKEND" && exec "$VENV/bin/celery" -A app.workers.celery_app worker --loglevel=info ) &
+  pids+=($!)
+
+  c "starting frontend → http://localhost:5173"
+  ( cd "$FRONTEND" && exec npm run dev ) &
+  pids+=($!)
+
+  c "all up. press Ctrl+C to stop."
+  wait
+}
+
+cmd_test() {
+  resolve_venv
+  c "backend: ruff + pytest"
+  ( cd "$BACKEND" && "$VENV/bin/ruff" check . && "$VENV/bin/ruff" format --check . && "$VENV/bin/python" -m pytest -q )
+  c "frontend: typecheck + build"
+  ( cd "$FRONTEND" && npm run build )
+}
+
+cmd_down() {
+  compose stop postgres redis 2>/dev/null || warn "nothing to stop"
+}
+
+case "${1:-up}" in
+  build) cmd_build ;;
+  up|run|"") cmd_up ;;
+  test) cmd_test ;;
+  down) cmd_down ;;
+  *) die "usage: ./dev [build|up|test|down]" ;;
+esac
