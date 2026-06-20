@@ -174,3 +174,14 @@ export interface LiveState {
   myQuizScore: number
   leaderboard: RankedUser[]
 }
+
+// --- Lecture notes (Dev A M6) ---
+export type NoteKind = 'LINK' | 'PDF' | 'SLIDES' | 'SUMMARY'
+
+export interface LectureNote {
+  id: string
+  title: string
+  url: string
+  kind: NoteKind
+  createdAt: string
+}

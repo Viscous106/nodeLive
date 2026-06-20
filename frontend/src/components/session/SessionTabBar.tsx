@@ -3,7 +3,7 @@ import { Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SessionStatus } from '@/types'
 
-export const SESSION_TABS = ['Session', 'Assignment', 'Feedback'] as const
+export const SESSION_TABS = ['Session', 'Assignment', 'Notes', 'Feedback'] as const
 export type SessionTab = (typeof SESSION_TABS)[number]
 
 export function SessionTabBar({
