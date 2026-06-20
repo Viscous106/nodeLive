@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
 
     # Routers added here as features land:
     from app.api import (
+        admin,
         analytics,
         assignments,
         auth,
@@ -92,6 +93,8 @@ def create_app() -> FastAPI:
     app.include_router(notes.router, prefix="/api")
     app.include_router(dashboard.router, prefix="/api")
     app.include_router(analytics.router, prefix="/api")
+    app.include_router(admin.router, prefix="/api")
+    app.include_router(admin.public_router, prefix="/api")
 
     _mount_frontend(app)
     return app
