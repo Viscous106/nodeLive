@@ -17,6 +17,13 @@ export function usePastSessions() {
   })
 }
 
+export function useUpcomingSessions() {
+  return useQuery({
+    queryKey: ['sessions', 'upcoming'],
+    queryFn: () => api.get<ClassSession[]>('/api/sessions?status=upcoming'),
+  })
+}
+
 export function useCourses() {
   return useQuery({
     queryKey: ['courses'],
