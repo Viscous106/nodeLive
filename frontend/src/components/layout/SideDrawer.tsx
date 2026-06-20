@@ -1,8 +1,9 @@
-import { Calendar, House, Trophy, X } from 'lucide-react'
+import { Calendar, House, Shield, Trophy, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '@/stores/uiStore'
 
@@ -43,6 +44,7 @@ function DrawerLink({ item, onNavigate }: { item: NavItem; onNavigate: () => voi
 export function SideDrawer() {
   const open = useUiStore((s) => s.drawerOpen)
   const close = useUiStore((s) => s.closeDrawer)
+  const { user } = useAuth()
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -107,6 +109,18 @@ export function SideDrawer() {
           {LEARN.map((item) => (
             <DrawerLink key={item.to} item={item} onNavigate={close} />
           ))}
+
+          {user?.role === 'ADMIN' && (
+            <>
+              <p className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Manage
+              </p>
+              <DrawerLink
+                item={{ to: '/admin', label: 'Admin', icon: Shield }}
+                onNavigate={close}
+              />
+            </>
+          )}
         </nav>
       </aside>
     </>

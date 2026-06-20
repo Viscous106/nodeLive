@@ -4,13 +4,16 @@ __pycache__/
 *.so
 .venv/
 venv/
-.venv*           # any venv variant (.venv312, .venv-py312, and the .venv symlink)
+# any venv variant (.venv312, .venv-py312, and the .venv symlink) — gitignore
+# has no inline comments, so the pattern must sit alone on its own line
+.venv*
 *.egg-info/
 dist/
 build/
 .mypy_cache/
 .ruff_cache/
-.ccg/            # local code-tooling scratch dir — never commit
+# local code-tooling scratch dir — never commit
+.ccg/
 .pytest_cache/
 htmlcov/
 .coverage
