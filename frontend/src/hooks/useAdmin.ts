@@ -5,6 +5,7 @@ import { toast } from '@/stores/toastStore'
 import type {
   ClassSession,
   Course,
+  Enrollment,
   Invitation,
   InvitePreview,
   Member,
@@ -94,6 +95,7 @@ const SESSIONS_KEY = ['admin', 'sessions'] as const
 
 export interface SessionInput {
   courseId: string
+  hostId?: string | null
   title: string
   description?: string | null
   scheduledAt: string // ISO 8601
@@ -169,5 +171,60 @@ export function useCancelSession() {
     },
     onError: () =>
       toast({ variant: 'error', title: 'Could not cancel the session.' }),
+  })
+}
+
+// --- instructor list (for host picker) ---------------------------------------
+
+export function useInstructors() {
+  return useQuery({
+    queryKey: ['admin', 'instructors'],
+    queryFn: () => api.get<Member[]>('/api/admin/instructors'),
+  })
+}
+
+// --- enrollment management ---------------------------------------------------
+
+const ENROLLMENTS_KEY = ['admin', 'enrollments'] as const
+
+export function useEnrollments(courseId?: string) {
+  const qs = courseId ? `?courseId=${courseId}` : ''
+  return useQuery({
+    queryKey: [...ENROLLMENTS_KEY, courseId ?? 'all'],
+    queryFn: () => api.get<Enrollment[]>(`/api/admin/enrollments${qs}`),
+  })
+}
+
+export function useCreateEnrollment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { userId: string; courseId: string }) =>
+      api.post<Enrollment>('/api/admin/enrollments', input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ENROLLMENTS_KEY })
+      toast({ variant: 'success', title: 'User enrolled' })
+    },
+    onError: (e) =>
+      toast({
+        variant: 'error',
+        title:
+          e instanceof ApiError && e.status === 409
+            ? 'User is already enrolled in this course.'
+            : 'Could not enroll user.',
+      }),
+  })
+}
+
+export function useDeleteEnrollment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.delete<null>(`/api/admin/enrollments/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ENROLLMENTS_KEY })
+      toast({ variant: 'success', title: 'Enrollment removed' })
+    },
+    onError: () =>
+      toast({ variant: 'error', title: 'Could not remove enrollment.' }),
   })
 }

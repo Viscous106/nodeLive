@@ -15,6 +15,7 @@ import {
   useCancelSession,
   useCreateCourse,
   useCreateSession,
+  useInstructors,
   useUpdateSession,
 } from '@/hooks/useAdmin'
 import type { ClassSession, SessionStatus } from '@/types'
@@ -40,6 +41,7 @@ function toLocalInput(iso: string): string {
 
 const EMPTY = {
   courseId: '',
+  hostId: '',
   title: '',
   scheduledAtLocal: '',
   durationMins: 60,
@@ -49,6 +51,7 @@ const EMPTY = {
 export function SessionsTab() {
   const { data: sessions, isLoading } = useAdminSessions()
   const { data: courses } = useAdminCourses()
+  const { data: instructors } = useInstructors()
   const create = useCreateSession()
   const update = useUpdateSession()
   const cancel = useCancelSession()
@@ -69,6 +72,7 @@ export function SessionsTab() {
     setEditingId(s.id)
     setForm({
       courseId: s.courseId,
+      hostId: '',
       title: s.title,
       scheduledAtLocal: toLocalInput(s.scheduledAt),
       durationMins: s.durationMins,
@@ -88,7 +92,10 @@ export function SessionsTab() {
     if (editingId) {
       update.mutate({ id: editingId, ...common }, { onSuccess: reset })
     } else {
-      create.mutate({ courseId: form.courseId, ...common }, { onSuccess: reset })
+      create.mutate(
+        { courseId: form.courseId, hostId: form.hostId || null, ...common },
+        { onSuccess: reset },
+      )
     }
   }
 
@@ -197,6 +204,24 @@ export function SessionsTab() {
                   ))}
                 </select>
               </div>
+              {!editingId && (
+                <div>
+                  <Label htmlFor="s-host">Instructor (host)</Label>
+                  <select
+                    id="s-host"
+                    value={form.hostId}
+                    onChange={(e) => setForm({ ...form, hostId: e.target.value })}
+                    className="h-10 w-full rounded-btn border border-border bg-card px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  >
+                    <option value="">Me (default)</option>
+                    {instructors?.map((m) => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.displayName} ({m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <Label htmlFor="s-title">Title</Label>
                 <Input

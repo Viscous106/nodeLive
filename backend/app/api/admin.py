@@ -15,11 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_org_role
 from app.db.session import get_db
-from app.models.course import ClassSession, Course, SessionStatus
+from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.org import Invitation, InvitationStatus, Membership, Organization
 from app.models.user import User, UserRole
 from app.schemas.course import CourseCreate, CourseOut
 from app.schemas.org import (
+    EnrollmentCreate,
+    EnrollmentOut,
     InvitationOut,
     InviteCreate,
     InvitePreview,
@@ -244,6 +246,119 @@ async def create_course(
     await db.commit()
     await db.refresh(course)
     return course
+
+
+# --- instructor list (for host picker) ----------------------------------------
+
+
+@router.get("/instructors", response_model=list[MemberOut])
+async def list_instructors(
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> list[MemberOut]:
+    """Members with INSTRUCTOR or ADMIN role — used to populate the host picker."""
+    rows = (
+        await db.execute(
+            select(Membership, User)
+            .join(User, User.id == Membership.user_id)
+            .where(
+                Membership.org_id == membership.org_id,
+                Membership.role.in_([UserRole.INSTRUCTOR, UserRole.ADMIN]),
+            )
+            .order_by(User.display_name)
+        )
+    ).all()
+    return [
+        MemberOut(
+            user_id=u.id,
+            email=u.email,
+            display_name=u.display_name,
+            role=m.role,
+            joined_at=m.created_at,
+        )
+        for m, u in rows
+    ]
+
+
+# --- enrollment management ----------------------------------------------------
+
+
+@router.get("/enrollments", response_model=list[EnrollmentOut])
+async def list_enrollments(
+    course_id: str | None = Query(default=None, alias="courseId"),
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> list[EnrollmentOut]:
+    stmt = (
+        select(Enrollment, User, Course)
+        .join(User, User.id == Enrollment.user_id)
+        .join(Course, Course.id == Enrollment.course_id)
+        .order_by(User.display_name)
+    )
+    if course_id is not None:
+        stmt = stmt.where(Enrollment.course_id == course_id)
+    rows = (await db.execute(stmt)).all()
+    return [
+        EnrollmentOut(
+            id=e.id,
+            user_id=e.user_id,
+            course_id=e.course_id,
+            display_name=u.display_name,
+            email=u.email,
+            course_title=c.title,
+        )
+        for e, u, c in rows
+    ]
+
+
+@router.post(
+    "/enrollments",
+    response_model=EnrollmentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_enrollment(
+    body: EnrollmentCreate,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> EnrollmentOut:
+    existing = await db.scalar(
+        select(Enrollment).where(
+            Enrollment.user_id == body.user_id,
+            Enrollment.course_id == body.course_id,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Already enrolled")
+    user = await db.get(User, body.user_id)
+    course = await db.get(Course, body.course_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if course is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
+    enr = Enrollment(user_id=body.user_id, course_id=body.course_id)
+    db.add(enr)
+    await db.commit()
+    await db.refresh(enr)
+    return EnrollmentOut(
+        id=enr.id,
+        user_id=enr.user_id,
+        course_id=enr.course_id,
+        display_name=user.display_name,
+        email=user.email,
+        course_title=course.title,
+    )
+
+
+@router.delete("/enrollments/{enrollment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_enrollment(
+    enrollment_id: str,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    enr = await db.get(Enrollment, enrollment_id)
+    if enr is not None:
+        await db.delete(enr)
+        await db.commit()
 
 
 # --- public preview (signup screen) ------------------------------------------

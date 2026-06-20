@@ -41,3 +41,17 @@ class InvitePreview(CamelModel):
     org_name: str
     email: EmailStr
     role: UserRole
+
+
+class EnrollmentOut(CamelModel):
+    id: str
+    user_id: str
+    course_id: str
+    display_name: str
+    email: EmailStr
+    course_title: str
+
+
+class EnrollmentCreate(CamelModel):
+    user_id: str
+    course_id: str

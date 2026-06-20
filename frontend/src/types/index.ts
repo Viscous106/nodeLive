@@ -224,3 +224,12 @@ export interface InvitePreview {
   email: string
   role: UserRole
 }
+
+export interface Enrollment {
+  id: string
+  userId: string
+  courseId: string
+  displayName: string
+  email: string
+  courseTitle: string
+}
