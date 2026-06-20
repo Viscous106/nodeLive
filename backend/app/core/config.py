@@ -4,6 +4,7 @@ Every value has a local-dev default so the app boots out of the box after
 `docker compose up postgres redis`. Production overrides via real env vars.
 """
 
+import os
 from functools import lru_cache
 
 from pydantic import field_validator
@@ -98,7 +99,14 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        return [o.strip() for o in self.CORS_ORIGIN.split(",") if o.strip()]
+        origins = [o.strip() for o in self.CORS_ORIGIN.split(",") if o.strip()]
+        # Render injects the service's public URL. Include it so the same-origin
+        # SPA's WebSocket (socket.io) handshake isn't rejected with 403 in prod
+        # (socket.io enforces cors_allowed_origins on the Origin header).
+        render_url = os.environ.get("RENDER_EXTERNAL_URL", "").strip()
+        if render_url and render_url not in origins:
+            origins.append(render_url)
+        return origins
 
     @property
     def bootstrap_admin_emails(self) -> set[str]:
