@@ -18,7 +18,7 @@ from app.db.session import get_db
 from app.models.course import ClassSession, Course, SessionStatus
 from app.models.org import Invitation, InvitationStatus, Membership, Organization
 from app.models.user import User, UserRole
-from app.schemas.course import CourseOut
+from app.schemas.course import CourseCreate, CourseOut
 from app.schemas.org import (
     InvitationOut,
     InviteCreate,
@@ -224,6 +224,22 @@ async def list_all_courses(
     db: AsyncSession = Depends(get_db),
 ) -> list[Course]:
     return list(await db.scalars(select(Course).order_by(Course.title)))
+
+
+@router.post("/courses", response_model=CourseOut, status_code=status.HTTP_201_CREATED)
+async def create_course(
+    body: CourseCreate,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> Course:
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Title required")
+    course = Course(title=title)
+    db.add(course)
+    await db.commit()
+    await db.refresh(course)
+    return course
 
 
 # --- public preview (signup screen) ------------------------------------------
