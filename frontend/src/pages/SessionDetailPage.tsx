@@ -4,14 +4,16 @@ import { Link, useParams } from 'react-router-dom'
 
 import { SkipLink } from '@/components/layout/SkipLink'
 import { TopNav } from '@/components/layout/TopNav'
+import { AnalyticsTab } from '@/components/session/AnalyticsTab'
 import { AssignmentTab } from '@/components/session/AssignmentTab'
 import { NotesTab } from '@/components/session/NotesTab'
-import { SessionTabBar } from '@/components/session/SessionTabBar'
+import { SESSION_TABS, SessionTabBar } from '@/components/session/SessionTabBar'
 import type { SessionTab } from '@/components/session/SessionTabBar'
 import { SimilarSessionsRow } from '@/components/session/SimilarSessionsRow'
 import { UpcomingSessionHero } from '@/components/session/UpcomingSessionHero'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAuth } from '@/hooks/useAuth'
 import { useSession } from '@/hooks/useSession'
 
 function TabPlaceholder({ text }: { text: string }) {
@@ -40,8 +42,19 @@ function NotFound() {
 
 export default function SessionDetailPage() {
   const { sessionId = '' } = useParams()
+  const { user } = useAuth()
   const { data: session, isLoading, isError } = useSession(sessionId)
   const [tab, setTab] = useState<SessionTab>('Session')
+
+  const isStaff =
+    !!user &&
+    !!session &&
+    (user.role === 'INSTRUCTOR' ||
+      user.role === 'ADMIN' ||
+      user.id === session.hostId)
+  const tabs: readonly SessionTab[] = isStaff
+    ? [...SESSION_TABS, 'Analytics']
+    : SESSION_TABS
 
   return (
     <div className="min-h-screen bg-page">
@@ -74,7 +87,12 @@ export default function SessionDetailPage() {
               </h1>
             </div>
 
-            <SessionTabBar status={session.status} active={tab} onChange={setTab} />
+            <SessionTabBar
+              tabs={tabs}
+              status={session.status}
+              active={tab}
+              onChange={setTab}
+            />
 
             <div className="mt-6 space-y-8">
               {tab === 'Session' && (
@@ -85,6 +103,9 @@ export default function SessionDetailPage() {
               )}
               {tab === 'Assignment' && <AssignmentTab session={session} />}
               {tab === 'Notes' && <NotesTab session={session} />}
+              {tab === 'Analytics' && isStaff && (
+                <AnalyticsTab sessionId={session.id} />
+              )}
               {tab === 'Feedback' && (
                 <TabPlaceholder text="Feedback opens once the session has ended." />
               )}

@@ -2,9 +2,17 @@ import { BookOpen } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCourses } from '@/hooks/useDashboard'
+import { useCourses, useDashboardStats } from '@/hooks/useDashboard'
 
-function ProgressRow({ label, value }: { label: string; value: string }) {
+function ProgressRow({
+  label,
+  value,
+  pct,
+}: {
+  label: string
+  value: string
+  pct: number | null
+}) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
@@ -12,9 +20,43 @@ function ProgressRow({ label, value }: { label: string; value: string }) {
         <span className="font-semibold text-text-primary">{value}</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-border-muted">
-        <div className="h-full w-0 rounded-full bg-success-light" />
+        <div
+          className="h-full rounded-full bg-success-light transition-all"
+          style={{ width: `${pct ?? 0}%` }}
+        />
       </div>
     </div>
+  )
+}
+
+function PerformanceWidget() {
+  const { data, isLoading } = useDashboardStats()
+  const graded = data?.assignmentsGraded ?? 0
+  const total = data?.assignmentsTotal ?? 0
+  const pct = total > 0 ? Math.round((graded / total) * 100) : 0
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Performance</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <Skeleton className="h-12" />
+        ) : (
+          <>
+            {/* Attendance needs the compliance read-model (Dev B M7) — shown as
+                — rather than faked. */}
+            <ProgressRow label="Attendance" value="—" pct={null} />
+            <ProgressRow
+              label="Assignments graded"
+              value={total > 0 ? `${graded}/${total}` : '—'}
+              pct={total > 0 ? pct : null}
+            />
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -58,17 +100,7 @@ export function DashboardSidebar() {
 
       <CoursesWidget />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Performance</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Real attendance/problems land with the compliance + assignment
-              milestones; shown as — until then rather than faked. */}
-          <ProgressRow label="Attendance" value="—" />
-          <ProgressRow label="Problems solved" value="—" />
-        </CardContent>
-      </Card>
+      <PerformanceWidget />
 
       <Card>
         <CardHeader>

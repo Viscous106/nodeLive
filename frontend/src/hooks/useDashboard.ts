@@ -30,3 +30,16 @@ export function useCourses() {
     queryFn: () => api.get<Course[]>('/api/courses'),
   })
 }
+
+export interface DashboardStats {
+  assignmentsGraded: number
+  assignmentsTotal: number
+  coursesEnrolled: number
+}
+
+export function useDashboardStats() {
+  return useQuery({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: () => api.get<DashboardStats>('/api/dashboard/stats'),
+  })
+}

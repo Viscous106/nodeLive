@@ -185,3 +185,13 @@ export interface LectureNote {
   kind: NoteKind
   createdAt: string
 }
+
+// --- Analytics (Dev A M7) ---
+export interface SessionAnalytics {
+  enrolled: number
+  quizParticipants: number
+  quizResponses: number
+  pollResponses: number
+  avgQuizPoints: number
+  topScorers: RankedUser[]
+}
