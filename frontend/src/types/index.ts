@@ -74,3 +74,103 @@ export interface ZoomJoinToken {
 export interface ApiErrorBody {
   detail: string | { msg: string; loc: (string | number)[] }[]
 }
+
+// --- Live-meeting (Dev B) — mirror backend/app/schemas/live.py --------------
+
+/** POST /api/sessions/:id/join → Zoom SDK credentials. */
+export interface ZoomJoin {
+  signature: string
+  sdkKey: string
+  zoomMeetingId: string
+}
+
+export interface CueCard {
+  id: string
+  content: string
+  displayOrder: number
+  shownAt: string | null
+}
+
+export type PollStatus = 'OPEN' | 'CLOSED'
+
+export interface Poll {
+  id: string
+  question: string
+  options: string[]
+  status: PollStatus
+}
+
+export interface PollOptionResult {
+  optionIndex: number
+  count: number
+  pct: number
+}
+
+export interface PollResults {
+  pollId: string
+  status: PollStatus
+  results: PollOptionResult[]
+}
+
+export type QuizStatus = 'DRAFT' | 'LIVE' | 'ENDED'
+
+export interface Quiz {
+  id: string
+  title: string
+  timeLimitSecs: number
+  status: QuizStatus
+}
+
+/** A live quiz question as broadcast by the server timer (no correct answer). */
+export interface ActiveQuestion {
+  quizId: string
+  questionId: string
+  index: number
+  text: string
+  options: string[]
+  timeLeft: number
+}
+
+export interface QuizScore {
+  questionId: string
+  correct: boolean
+  points: number
+}
+
+export interface Notice {
+  id: string
+  content: string
+  priority: string
+  createdAt: string
+  expiresAt: string | null
+}
+
+export interface Bookmark {
+  id: string
+  timestampMs: number
+  label: string | null
+  createdAt: string
+}
+
+export interface RankedUser {
+  userId: string
+  displayName: string
+  points: number
+}
+
+export interface RaisedHand {
+  userId: string
+  name?: string | null
+}
+
+/** GET /api/sessions/:id/live/state — reconnect snapshot. */
+export interface LiveState {
+  currentCueCard: CueCard | null
+  activePoll: Poll | null
+  activeQuiz: Quiz | null
+  pinnedMessage: string | null
+  recentNotices: Notice[]
+  userBookmarks: Bookmark[]
+  myQuizScore: number
+  leaderboard: RankedUser[]
+}

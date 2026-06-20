@@ -24,7 +24,7 @@ UI, admin. Shared seams are called out per milestone.
 | M1 Zoom JWT + intervals | Phase 0/1 | ✅ done (PR #10) |
 | M2 Realtime backbone | Phase 1 | ✅ done (PR #11) |
 | M3 Live feature APIs | Phase 1/2 | ✅ done (PR #12) |
-| M4 Frontend live page | Phase 1/2 | |
+| M4 Frontend live page | Phase 1/2 | ✅ done (PR #13) |
 | M5 Live AI chat + polish | Phase 4 (live) | |
 | M6 Webhooks + attendance reconcile | compliance (Phase 3/5) | |
 | M7 Recording ingest + watch-tracking | compliance (Phase 3) | |
@@ -70,12 +70,21 @@ so a mid-quiz reconnect waits for the next rotation — surface this in the live
 
 ## M4 — Frontend live-meeting page · _Phase 1/2_
 
-- [ ] `LiveMeetingPage` split-pane; `ZoomPanel` + `useZoomSDK` (port from `testing/src/App.tsx`)
-- [ ] `FeaturePanel` tabs + panels (Chat, Quiz, Poll, Leaderboard, Bookmarks, Notes)
-- [ ] `CueCardOverlay`, `NoticeOverlay`, `RaiseHandQueue`
-- [ ] `useSocket`/`useSocketEvents`/`useLiveState` + `liveClassStore` (Zustand)
+- [x] `LiveMeetingPage` split-pane; `ZoomPanel` + `useZoomSDK` (ported from `testing/src/App.tsx` with the Appendix-D fixes: `patchJsMedia`, `leaveOnPageUnload`, `sdkKey`, `customerKey`)
+- [x] `FeaturePanel` tabs + panels (Chat, Quiz, Poll, Leaderboard, Bookmarks, Notes)
+- [x] `CueCardOverlay`, `NoticeOverlay`, `RaiseHandQueue`
+- [x] `useSocket`/`useSocketEvents`/`useLiveState` + `liveClassStore` (Zustand)
 
-**DoD:** end-to-end live demo against a seeded LIVE session; SDK joins with `customerKey`; COOP/COEP headers set in `vite.config.ts`.
+**DoD:** ✅ `/live/:sessionId` route renders the split pane; SDK joins with `customerKey = user.id.slice(0,35)`; COOP/COEP already in `vite.config.ts`; `npm run build` (tsc + vite) green.
+
+_Verified locally:_ full typecheck/build passes; all live modules transform in Vite; app boots; **integration round-trip passes** — a `socketio.AsyncClient` with the session cookie + browser `Origin` connects (cookie auth + CORS), joins the room, and receives `poll:launched` after a REST `POST /polls`. Visual mount of the authed page to be eyeballed by clicking **Join Session** (seed session `seed-session-up-1` set to LIVE locally).
+
+_Deferred (by design):_ **AI chat → M5** (ChatPanel placeholder); leave-confirm uses `window.confirm` (richer dialog → M5); assignment-unlock has no live-page button yet (endpoint shipped in M3; needs an assignment list surfaced here).
+
+_Known issues for the PR:_
+- **Carryover:** `/live/state` omits the in-flight quiz question + remaining time, so a mid-quiz reconnect waits for the next rotation — a small backend add (M3 follow-up) closes it.
+- **Stale CRITICAL notice on reconnect:** `NoticeOverlay` reads hydrated `recentNotices`, so a past CRITICAL notice in the snapshot re-pops as a full-screen takeover on rejoin until locally dismissed — `/live/state` has no dismissed-state. Fix when notices gain a lifecycle.
+- **StrictMode socket churn:** dev double-invokes effects → connect → `disconnectSocket()` → reconnect; ends consistent (one live socket) but worth a glance in the backend log if events ever seem missing.
 
 ## M5 — Live AI chat + polish · _Phase 4 (live half)_
 
