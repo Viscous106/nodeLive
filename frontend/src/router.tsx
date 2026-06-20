@@ -2,7 +2,11 @@ import { lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
-import { ProtectedRoute, PublicOnlyRoute } from '@/components/auth/guards'
+import {
+  AdminRoute,
+  ProtectedRoute,
+  PublicOnlyRoute,
+} from '@/components/auth/guards'
 import { PageLoader } from '@/components/ui/PageLoader'
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
@@ -12,6 +16,7 @@ const SessionsPage = lazy(() => import('@/pages/SessionsPage'))
 const LeaderboardPage = lazy(() => import('@/pages/LeaderboardPage'))
 const SessionDetailPage = lazy(() => import('@/pages/SessionDetailPage'))
 const LiveMeetingPage = lazy(() => import('@/pages/LiveMeetingPage'))
+const AdminPage = lazy(() => import('@/pages/AdminPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 function Lazy({ children }: { children: ReactNode }) {
@@ -35,6 +40,12 @@ export const router = createBrowserRouter([
       { path: '/leaderboard', element: <Lazy><LeaderboardPage /></Lazy> },
       { path: '/session/:sessionId', element: <Lazy><SessionDetailPage /></Lazy> },
       { path: '/live/:sessionId', element: <Lazy><LiveMeetingPage /></Lazy> },
+    ],
+  },
+  {
+    element: <AdminRoute />,
+    children: [
+      { path: '/admin', element: <Lazy><AdminPage /></Lazy> },
     ],
   },
   { path: '*', element: <Lazy><NotFoundPage /></Lazy> },

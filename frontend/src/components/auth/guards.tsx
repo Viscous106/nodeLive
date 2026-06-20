@@ -26,3 +26,12 @@ export function PublicOnlyRoute() {
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
   return <Outlet />
 }
+
+/** Gate for admin-only routes. Non-admins are bounced to the dashboard. */
+export function AdminRoute() {
+  const { isLoading, user } = useAuth()
+  if (isLoading) return <FullScreenLoader />
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role !== 'ADMIN') return <Navigate to="/dashboard" replace />
+  return <Outlet />
+}

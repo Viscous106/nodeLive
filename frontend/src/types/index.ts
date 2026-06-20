@@ -195,3 +195,32 @@ export interface SessionAnalytics {
   avgQuizPoints: number
   topScorers: RankedUser[]
 }
+
+// --- Admin (AD) — mirror backend/app/schemas/org.py -------------------------
+export interface Member {
+  userId: string
+  email: string
+  displayName: string
+  role: UserRole
+  joinedAt: string // ISO 8601
+}
+
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED'
+
+export interface Invitation {
+  id: string
+  email: string
+  role: UserRole
+  status: InvitationStatus
+  token: string
+  inviteUrl: string // relative, e.g. /signup?invite=<token>
+  createdAt: string
+  expiresAt: string | null
+}
+
+/** GET /api/invitations/:token — public preview for the signup screen. */
+export interface InvitePreview {
+  orgName: string
+  email: string
+  role: UserRole
+}

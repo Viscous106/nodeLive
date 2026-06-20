@@ -13,6 +13,7 @@ export interface LoginInput {
 
 export interface SignupInput extends LoginInput {
   displayName: string
+  inviteToken?: string
 }
 
 /**
