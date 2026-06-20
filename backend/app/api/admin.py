@@ -9,14 +9,16 @@ screen can show "Joining {org} as {role}".
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_org_role
 from app.db.session import get_db
+from app.models.course import ClassSession, Course, SessionStatus
 from app.models.org import Invitation, InvitationStatus, Membership, Organization
 from app.models.user import User, UserRole
+from app.schemas.course import CourseOut
 from app.schemas.org import (
     InvitationOut,
     InviteCreate,
@@ -24,6 +26,7 @@ from app.schemas.org import (
     MemberOut,
     RoleUpdate,
 )
+from app.schemas.session import ClassSessionOut
 from app.services.roles import assign_role, count_org_admins
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -182,6 +185,45 @@ async def revoke_invitation(
     if inv is not None and inv.status is InvitationStatus.PENDING:
         inv.status = InvitationStatus.REVOKED
         await db.commit()
+
+
+# --- sessions (schedule & manage) --------------------------------------------
+
+
+@router.get("/sessions", response_model=list[ClassSessionOut])
+async def list_all_sessions(
+    status_filter: SessionStatus | None = Query(default=None, alias="status"),
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> list[ClassSession]:
+    stmt = select(ClassSession)
+    if status_filter is not None:
+        stmt = stmt.where(ClassSession.status == status_filter)
+    stmt = stmt.order_by(ClassSession.scheduled_at.desc())
+    return list(await db.scalars(stmt))
+
+
+@router.post("/sessions/{session_id}/cancel", response_model=ClassSessionOut)
+async def cancel_session(
+    session_id: str,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> ClassSession:
+    cs = await db.get(ClassSession, session_id)
+    if cs is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    cs.status = SessionStatus.CANCELLED
+    await db.commit()
+    await db.refresh(cs)
+    return cs
+
+
+@router.get("/courses", response_model=list[CourseOut])
+async def list_all_courses(
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> list[Course]:
+    return list(await db.scalars(select(Course).order_by(Course.title)))
 
 
 # --- public preview (signup screen) ------------------------------------------

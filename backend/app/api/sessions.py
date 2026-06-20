@@ -12,17 +12,52 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import get_current_user
+from app.auth.deps import get_current_user, require_role
 from app.db.session import get_db
-from app.models.course import ClassSession, Enrollment, SessionStatus
+from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.user import User, UserRole
-from app.schemas.session import ClassSessionOut, ClassSessionPatch
+from app.schemas.session import (
+    ClassSessionCreate,
+    ClassSessionOut,
+    ClassSessionPatch,
+)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
+
+_privileged = require_role(UserRole.INSTRUCTOR, UserRole.ADMIN)
 
 
 def _enrolled_course_ids(user_id: str):
     return select(Enrollment.course_id).where(Enrollment.user_id == user_id)
+
+
+@router.post("", response_model=ClassSessionOut, status_code=status.HTTP_201_CREATED)
+async def create_session(
+    body: ClassSessionCreate,
+    user: User = Depends(_privileged),
+    db: AsyncSession = Depends(get_db),
+) -> ClassSession:
+    """Schedule a class session. Instructor/admin only; the creator is the host.
+
+    v1 takes a manually-entered `zoomMeetingId`; auto-creating a real Zoom
+    meeting via S2S is a documented fast-follow.
+    """
+    if await db.get(Course, body.course_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
+    cs = ClassSession(
+        course_id=body.course_id,
+        host_id=user.id,
+        title=body.title,
+        description=body.description,
+        scheduled_at=body.scheduled_at,
+        duration_mins=body.duration_mins,
+        zoom_meeting_id=body.zoom_meeting_id,
+        status=SessionStatus.SCHEDULED,
+    )
+    db.add(cs)
+    await db.commit()
+    await db.refresh(cs)
+    return cs
 
 
 @router.get("", response_model=list[ClassSessionOut])
