@@ -17,7 +17,7 @@ from app.db.session import get_db
 from app.models.org import Invitation, InvitationStatus
 from app.models.user import User, UserRole
 from app.schemas.auth import LoginIn, SignupIn, UserOut
-from app.services.roles import assign_role
+from app.services.roles import assign_role, maybe_bootstrap_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -84,6 +84,8 @@ async def signup(
     if invite is not None:
         invite.status = InvitationStatus.ACCEPTED
         invite.accepted_at = datetime.now(UTC)
+    # A bootstrap-admin email outranks the default/invited role.
+    await maybe_bootstrap_admin(db, user)
     await db.commit()
     await db.refresh(user)
     _set_session_cookie(response, create_access_token(user.id))
@@ -102,6 +104,9 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
+    # Promote a configured bootstrap-admin on login (no-shell first admin).
+    if await maybe_bootstrap_admin(db, user):
+        await db.commit()
     _set_session_cookie(response, create_access_token(user.id))
     return user
 

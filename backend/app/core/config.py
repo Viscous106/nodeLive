@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     COOKIE_NAME: str = "linkhq_session"
     COOKIE_SECURE: bool = False  # True in production (HTTPS only)
 
+    # --- Bootstrap admin (no-shell first admin on a fresh/deployed instance) ---
+    # Comma-separated emails auto-granted ADMIN on signup/login. Solves the
+    # chicken-and-egg of needing an admin to use the admin panel when there's no
+    # shell to run `set_role`. Safe: it's an explicit allowlist, overridable via
+    # the BOOTSTRAP_ADMIN_EMAILS env var.
+    BOOTSTRAP_ADMIN_EMAILS: str = "abhinav.singh@scaler.com"
+
     # --- Zoom Meeting SDK ---
     ZOOM_SDK_KEY: str = ""
     ZOOM_SDK_SECRET: str = ""
@@ -81,6 +88,14 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGIN.split(",") if o.strip()]
+
+    @property
+    def bootstrap_admin_emails(self) -> set[str]:
+        return {
+            e.strip().lower()
+            for e in self.BOOTSTRAP_ADMIN_EMAILS.split(",")
+            if e.strip()
+        }
 
     @property
     def alembic_url(self) -> str:
