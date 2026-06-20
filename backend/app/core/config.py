@@ -65,6 +65,17 @@ class Settings(BaseSettings):
     # time to finalize the participant report after the meeting ends.
     ATTENDANCE_RECONCILE_DELAY_SECS: int = 5 * 60
 
+    # --- Recording storage (Cloudflare R2 / S3-compatible) ---
+    # All empty by default → ingest + presign raise/501 (graceful degrade).
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET: str = ""
+    # e.g. https://<account_id>.r2.cloudflarestorage.com
+    R2_ENDPOINT_URL: str = ""
+    # Presigned playback URL lifetime.
+    RECORDING_URL_TTL_SECS: int = 300
+
     # --- AI ---
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
