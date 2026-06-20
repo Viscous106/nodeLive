@@ -4,20 +4,22 @@ import { cn } from '@/lib/utils'
 import type { SessionStatus } from '@/types'
 
 export const SESSION_TABS = ['Session', 'Assignment', 'Notes', 'Feedback'] as const
-export type SessionTab = (typeof SESSION_TABS)[number]
+export type SessionTab = (typeof SESSION_TABS)[number] | 'Analytics'
 
 export function SessionTabBar({
+  tabs = SESSION_TABS,
   status,
   active,
   onChange,
 }: {
+  tabs?: readonly SessionTab[]
   status: SessionStatus
   active: SessionTab
   onChange: (tab: SessionTab) => void
 }) {
   return (
     <div className="flex gap-6 border-b border-border">
-      {SESSION_TABS.map((tab) => {
+      {tabs.map((tab) => {
         const locked = tab === 'Feedback' && status !== 'ENDED'
         return (
           <button
