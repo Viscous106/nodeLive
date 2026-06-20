@@ -5,5 +5,6 @@
 set -e
 
 alembic upgrade head
+python -m scripts.seed
 celery -A app.workers.celery_app worker --loglevel=info &
 exec uvicorn app.main:socket_app --host 0.0.0.0 --port "${PORT:-8080}"
