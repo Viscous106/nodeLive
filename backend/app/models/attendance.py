@@ -22,6 +22,7 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     DateTime,
+    Float,
     Integer,
     String,
     Text,
@@ -60,6 +61,11 @@ class Meeting(Base):
     ended_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    recording_s3_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    recording_status: Mapped[str] = mapped_column(
+        String(16), default="none", nullable=False
+    )  # none | pending | stored | failed
+    recording_duration_secs: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -119,4 +125,28 @@ class WebhookEvent(Base):
     event_id: Mapped[str] = mapped_column(Text, primary_key=True)
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class WatchProgress(Base):
+    """Per-user watch coverage for a recording, keyed by the recording's
+    occurrence (zoom_uuid) + the real app user id. `watched_segments` is the
+    merged union of actually-played spans — seeking to the end can't inflate it.
+    """
+
+    __tablename__ = "watch_progress"
+    __table_args__ = (
+        UniqueConstraint("zoom_uuid", "user_id", name="uq_watch_progress_identity"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    zoom_uuid: Mapped[str] = mapped_column(String(255), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    last_position_secs: Mapped[float] = mapped_column(Float, default=0.0)
+    max_position_secs: Mapped[float] = mapped_column(Float, default=0.0)
+    watched_segments: Mapped[list] = mapped_column(JSON, default=list)
+    duration_secs: Mapped[float] = mapped_column(Float, default=0.0)
+    percent_complete: Mapped[float] = mapped_column(Float, default=0.0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
