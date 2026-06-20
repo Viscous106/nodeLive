@@ -17,6 +17,7 @@ from app.db.session import get_db
 from app.models.org import Invitation, InvitationStatus
 from app.models.user import User, UserRole
 from app.schemas.auth import LoginIn, SignupIn, UserOut
+from app.services.enrollment import ensure_enrolled_all_courses
 from app.services.roles import assign_role, maybe_bootstrap_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -86,6 +87,8 @@ async def signup(
         invite.accepted_at = datetime.now(UTC)
     # A bootstrap-admin email outranks the default/invited role.
     await maybe_bootstrap_admin(db, user)
+    # Single-org: everyone is enrolled in every course (dashboard visibility).
+    await ensure_enrolled_all_courses(db, user)
     await db.commit()
     await db.refresh(user)
     _set_session_cookie(response, create_access_token(user.id))
