@@ -11,8 +11,6 @@ class. Dev login password for all seeded users: ``password123``.
 import asyncio
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
-
 from app.auth.security import hash_password
 from app.db.session import AsyncSessionLocal
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
@@ -29,6 +27,10 @@ async def _ensure_live_session(db) -> None:
     """Create a LIVE session if one doesn't exist (idempotent). Lets both the
     instructor *and* enrolled students reach `/live/:id` for the demo."""
     if await db.get(ClassSession, _LIVE_SESSION_ID) is not None:
+        return
+    course_missing = await db.get(Course, _COURSE_ID) is None
+    host_missing = await db.get(User, _INSTRUCTOR_ID) is None
+    if course_missing or host_missing:
         return
     db.add(
         ClassSession(
@@ -48,10 +50,9 @@ async def _ensure_live_session(db) -> None:
 
 async def seed() -> None:
     async with AsyncSessionLocal() as db:
-        existing = await db.scalar(
-            select(User).where(User.email == "instructor@linkhq.dev")
-        )
-        if existing is not None:
+        instructor_exists = await db.get(User, _INSTRUCTOR_ID) is not None
+        course_exists = await db.get(Course, _COURSE_ID) is not None
+        if instructor_exists and course_exists:
             print("Seed data already present — ensuring a LIVE session.")
             await _ensure_live_session(db)
             return
