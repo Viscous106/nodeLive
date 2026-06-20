@@ -21,12 +21,12 @@ UI, admin. Shared seams are called out per milestone.
 ### Roadmap mapping
 | Milestone | plan.md phase | Status |
 |---|---|---|
-| M1 Zoom JWT + intervals | Phase 0/1 | ✅ done (PR #10) |
-| M2 Realtime backbone | Phase 1 | ✅ done (PR #11) |
-| M3 Live feature APIs | Phase 1/2 | ✅ done (PR #12) |
-| M4 Frontend live page | Phase 1/2 | ✅ done (PR #13) |
-| M5 Live AI chat + polish | Phase 4 (live) | ✅ done (PR #14) |
-| M6 Webhooks + attendance reconcile | compliance (Phase 3/5) | |
+| M1 Zoom JWT + intervals | Phase 0/1 | ✅ merged to `main` |
+| M2 Realtime backbone | Phase 1 | ✅ merged to `main` |
+| M3 Live feature APIs | Phase 1/2 | ✅ merged to `main` (PR #13) |
+| M4 Frontend live page | Phase 1/2 | ✅ merged to `main` (PR #13) |
+| M5 Live AI chat + polish | Phase 4 (live) | ✅ merged to `main` (PR #14) |
+| M6 Webhooks + attendance reconcile | compliance (Phase 3/5) | 🟡 in PR #15 (this PR) |
 | M7 Recording ingest + watch-tracking | compliance (Phase 3) | |
 | M8 Post-meeting AI pipeline | Phase 4 | |
 | M9 AI recommendations + engagement analytics | Phase 4 | |
@@ -102,12 +102,16 @@ _Known issue for the PR:_ the **caption buffer is interpolated raw** into the sy
 
 The durable + authoritative layers of the three-layer attendance model.
 
-- [ ] `app/api/webhooks.py` — HMAC-SHA256 over **raw body** (port from `testing/routes/webhooks.js`); handlers for `meeting.started|ended|participant_joined|participant_left` → `attendance_sessions`
-- [ ] `jobs`-style queue + Celery reconcile task (runs ~5 min after `meeting.ended`)
-- [ ] Reports-API reconcile → `attendance_final` (authoritative tie-breaker), using the **meeting UUID** (not numeric id) + `customer_key || email` identity match
-- [ ] Attendance credit = **union of intervals** (reuse `intervals.py`)
+- [x] `app/api/webhooks.py` — HMAC-SHA256 over **raw body**, url-validation handshake before verify, idempotency claim committed independently (port from `testing/routes/webhooks.js`); handlers for `meeting.started|ended|participant_joined|participant_left` → `attendance_sessions`; models `Meeting`/`AttendanceSession`/`AttendanceFinal`/`WebhookEvent` + migration `b8e3d6f1c742`
+- [x] Celery reconcile task scheduled ~5 min after `meeting.ended` (`ATTENDANCE_RECONCILE_DELAY_SECS`); broker replaces the prototype `jobs` table
+- [x] Reports-API reconcile → `attendance_final` (authoritative), by **meeting UUID** (double-encoded when it contains `/`) + `customer_key || email || name` identity; **delete-then-insert** per uuid (idempotent recompute; sidesteps NULL-in-unique upsert)
+- [x] Attendance credit = **union of intervals** (reuses `intervals.py`)
 
-**DoD:** webhook signature verified on raw bytes; reconnects don't double-count attendance; `attendance_final` is the source of truth; pytest covers union + identity-match edge cases.
+**DoD:** ✅ signature verified on raw bytes; reconnects unioned (not double-counted); `attendance_final` is the recompute source of truth; 16 pytest cover union / `customer_key→email→name` identity / `duration` fallback / UUID double-encode / composite idempotency key / pagination + webhook HMAC / handshake / dedup / join-leave.
+
+_Verified offline (`run_reconcile` injection seam):_ pure reconcile + Reports-API **pagination wiring** + webhook HMAC/idempotency are tested. The **live Reports-API fetch + S2S OAuth** path is ported verbatim from `reconcile.js` but not exercised (needs real creds) — `utils/zoom_auth.py` raises until `ZOOM_S2S_*` is set.
+
+_Notes for the PR:_ `recording.completed` is **not** handled here (recording ingest is M7). Guest participants lacking both `participant_uuid` and `user_id` use a `name+time` fallback key, so their leave may not match their join (faithful to the prototype; rare). Attendance is keyed by `zoom_uuid`/`zoom_meeting_id`; surfacing a per-session attendance % read-model to the dashboard is M7/Dev-A's seam — `ClassSession` is unchanged.
 
 ## M7 — Recording ingest + watch-tracking · _compliance (Phase 3)_
 
