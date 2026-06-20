@@ -25,7 +25,9 @@ RUN pip install -r requirements.txt
 COPY backend/ ./
 COPY --from=frontend /fe/dist ./static
 ENV FRONTEND_DIST=/app/static
+RUN chmod +x start.sh
 
 EXPOSE 8080
-# Default = web process. fly.toml overrides this for the worker.
-CMD ["sh", "-c", "uvicorn app.main:socket_app --host 0.0.0.0 --port ${PORT:-8080}"]
+# start.sh = migrate + Celery worker + web server (Render uses this).
+# fly.toml overrides it with separate web/worker process commands.
+CMD ["sh", "start.sh"]

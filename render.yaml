@@ -25,11 +25,9 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /health
-    # migrations (blocking) → Celery worker (background) → web server (foreground)
-    dockerCommand: >-
-      sh -c "alembic upgrade head &&
-      (celery -A app.workers.celery_app worker --loglevel=info &) ;
-      exec uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT"
+    # Start command comes from the image CMD (backend/start.sh): migrate →
+    # Celery worker (background) → web server. No dockerCommand override (Render
+    # mangles inline shell quoting; a script file is reliable).
     envVars:
       - key: DATABASE_URL
         fromDatabase:
