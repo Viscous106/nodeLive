@@ -14,6 +14,7 @@ from app.models.attendance import (
 )
 from app.models.base import Base
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
+from app.models.lecture_note import LectureNote, NoteKind
 from app.models.live_meeting import (
     Bookmark,
     CueCard,
@@ -58,4 +59,6 @@ __all__ = [
     "AttendanceFinal",
     "AttendanceSource",
     "WebhookEvent",
+    "LectureNote",
+    "NoteKind",
 ]
