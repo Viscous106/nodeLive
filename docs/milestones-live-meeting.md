@@ -36,19 +36,19 @@ UI, admin. Shared seams are called out per milestone.
 
 ## M1 — Zoom JWT + intervals (no dependencies — start now) · _Phase 0/1_
 
-- [ ] `app/utils/zoom_jwt.py` — HS256 SDK signature (port from `testing/server.js`) + tests
-- [ ] `app/utils/intervals.py` — `merge_intervals` / `coverage_fraction` (port from `testing/lib/intervals.js`) + tests
-- [ ] `POST /api/sessions/:id/join` → `{ signature, sdkKey, zoomMeetingId }` (uses merged auth + ClassSession)
+- [x] `app/utils/zoom_jwt.py` — HS256 SDK signature (port from `testing/server.js`) + tests
+- [x] `app/utils/intervals.py` — `merge_intervals` / `coverage_fraction` (port from `testing/lib/intervals.js`) + tests
+- [x] `POST /api/sessions/:id/join` → `{ signature, sdkKey, zoomMeetingId }` (uses merged auth + ClassSession)
 
 **DoD:** join returns a valid SDK signature; intervals tests encode **"seek-to-end yields 15%, not 100%"**; ruff + pytest green.
 
 ## M2 — Realtime backbone · _Phase 1_
 
-- [ ] python-socketio mounted via `app.main:socket_app`; connect handler validates JWT cookie
-- [ ] `join_session` → room join (`session:{id}`, instructor + private rooms)
-- [ ] `caption_received` → Redis sorted-set buffer (last 50)
-- [ ] `app/models/live_meeting.py` (CueCard, Poll, Quiz, Bookmark, Notice, PinnedMessage, LeaderboardPoint) + migration 002
-- [ ] `GET /api/sessions/:id/live/state` — full snapshot for reconnects
+- [x] python-socketio mounted via `app.main:socket_app`; connect handler validates JWT cookie
+- [x] `join_session` → room join (`session:{id}`, instructor + private rooms)
+- [x] `caption_received` → Redis sorted-set buffer (last 50)
+- [x] `app/models/live_meeting.py` (CueCard, Poll, Quiz, Bookmark, Notice, PinnedMessage, LeaderboardPoint) + migration 002
+- [x] `GET /api/sessions/:id/live/state` — full snapshot for reconnects
 
 **DoD:** a client connects with a real session cookie, joins its room, and `/live/state` returns the current snapshot.
 

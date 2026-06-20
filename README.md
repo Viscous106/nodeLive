@@ -67,25 +67,74 @@ long-lived shared branch — the Day-1 skeleton was merged to `main` directly.
 
 ## Local Development
 
-```bash
-# Start infrastructure
-docker compose up -d postgres redis
+### 1. Infrastructure
 
-# Backend
+```bash
+docker compose up -d postgres redis
+```
+
+### 2. Backend (run from `backend/`)
+
+```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install uv && uv pip install -r requirements.txt
-cp .env.example .env  # fill in Zoom + Anthropic credentials
-alembic upgrade head
+cp .env.example .env       # defaults work locally; fill Zoom + Anthropic creds for real meetings/AI
+alembic upgrade head       # creates all tables (incl. live-meeting)
+python -m scripts.seed     # 1 instructor + 2 students + 5 sessions — login password: password123
+
+# Serve app.main:socket_app (the ASGI wrapper), NOT app — or WebSockets 404.
 uvicorn app.main:socket_app --reload --port 8000
+```
+
+> The live-meeting backend (Zoom JWT, intervals, socket.io, `/live/state`) runs
+> **without real Zoom/Anthropic credentials** — the SDK signature is signed
+> locally. Real creds are only needed to actually join a Zoom meeting (frontend)
+> or call Claude.
+
+### 3. Frontend (run from `frontend/`)
+
+```bash
+cd frontend
+npm install
+npm run dev                # http://localhost:5173
+```
+
+### 4. Workers (optional — only needed for Celery features)
+
+```bash
+cd backend && source .venv/bin/activate
+celery -A app.workers.celery_app worker --loglevel=info
+```
+
+### Verify it's running
+
+```bash
+# Health
+curl localhost:8000/health         # liveness, no deps
+curl localhost:8000/health/ready   # readiness, pings the DB
+open http://localhost:8000/docs    # Swagger UI
+
+# Log in (saves the HttpOnly session cookie), then hit the live routes
+curl -c cj.txt -X POST localhost:8000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"instructor@linkhq.dev","password":"password123"}'
+curl -b cj.txt localhost:8000/api/sessions                       # list sessions → grab an id
+curl -b cj.txt -X POST localhost:8000/api/sessions/<ID>/join     # → { signature, sdkKey, zoomMeetingId }
+curl -b cj.txt localhost:8000/api/sessions/<ID>/live/state       # reconnect snapshot
+```
+
+### Quality gates (CI)
+
+```bash
+# Backend (needs postgres up — conftest auto-creates the linkhq_test DB)
+cd backend && source .venv/bin/activate
+ruff check . && ruff format --check .   # lint
+pytest                                  # tests
 
 # Frontend
 cd frontend
-npm install
-npm run dev  # http://localhost:5173
-
-# Workers
-celery -A app.workers.celery_app worker --loglevel=info
+npm run build                           # tsc -b && vite build (also the typecheck gate)
 ```
 
 ## Prototype Reference
