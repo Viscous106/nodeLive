@@ -8,6 +8,8 @@ import { PageLoader } from '@/components/ui/PageLoader'
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
 const SignupPage = lazy(() => import('@/pages/SignupPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
+const SessionsPage = lazy(() => import('@/pages/SessionsPage'))
+const LeaderboardPage = lazy(() => import('@/pages/LeaderboardPage'))
 const SessionDetailPage = lazy(() => import('@/pages/SessionDetailPage'))
 const LiveMeetingPage = lazy(() => import('@/pages/LiveMeetingPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
@@ -29,6 +31,8 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       { path: '/dashboard', element: <Lazy><DashboardPage /></Lazy> },
+      { path: '/sessions', element: <Lazy><SessionsPage /></Lazy> },
+      { path: '/leaderboard', element: <Lazy><LeaderboardPage /></Lazy> },
       { path: '/session/:sessionId', element: <Lazy><SessionDetailPage /></Lazy> },
       { path: '/live/:sessionId', element: <Lazy><LiveMeetingPage /></Lazy> },
     ],
