@@ -14,7 +14,7 @@ export function VideoCard({ session }: { session: ClassSession }) {
 
   return (
     <Link
-      to={`/session/${session.id}`}
+      to={`/session/${session.id}/recording`}
       className="group block w-[250px] shrink-0 overflow-hidden rounded-card border border-border bg-card shadow-card transition-shadow hover:shadow-elevated"
     >
       <div
