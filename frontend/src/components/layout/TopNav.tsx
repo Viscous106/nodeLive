@@ -1,15 +1,17 @@
-import { Bell, ChevronDown, Coins, GraduationCap, LogOut, Menu } from 'lucide-react'
+import { Bell, ChevronDown, Coins, GraduationCap, LogOut, Menu, Moon, Sun } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { Avatar } from '@/components/ui/avatar'
 import { DropdownItem, DropdownMenu } from '@/components/ui/dropdown-menu'
 import { useAuth, useLogout } from '@/hooks/useAuth'
+import { useThemeStore } from '@/stores/themeStore'
 import { useUiStore } from '@/stores/uiStore'
 
 export function TopNav() {
   const openDrawer = useUiStore((s) => s.openDrawer)
   const { user } = useAuth()
   const logout = useLogout()
+  const { dark, toggle } = useThemeStore()
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-card px-4 sm:px-page-x">
@@ -41,6 +43,14 @@ export function TopNav() {
             <span className="sr-only">coins</span>
           </span>
         )}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="rounded-full p-2 text-text-secondary hover:bg-border-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </button>
         <button
           type="button"
           aria-label="Notifications"
