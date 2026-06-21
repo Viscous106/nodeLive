@@ -478,9 +478,7 @@ async def session_attendance(
     ]
 
 
-@router.post(
-    "/sessions/{session_id}/sync-attendance", response_model=SyncAttendanceOut
-)
+@router.post("/sessions/{session_id}/sync-attendance", response_model=SyncAttendanceOut)
 async def sync_attendance(
     session_id: str,
     membership: Membership = Depends(_admin),
@@ -512,20 +510,29 @@ async def sync_attendance(
                 )
             )
         )
-        instances = await zoom_meetings.get_past_instances(cs.zoom_meeting_id)
+        # Listing past instances is best-effort: if its scope is missing but a
+        # webhook already recorded a Meeting row, reconcile that instead of
+        # failing outright.
+        instances_err: str | None = None
+        try:
+            instances = await zoom_meetings.get_past_instances(cs.zoom_meeting_id)
+        except httpx.HTTPStatusError as e:
+            instances = []
+            instances_err = (
+                f"Zoom API {e.response.status_code}: {(e.response.text or '')[:200]}"
+            )
         uuids = list(dict.fromkeys([*known, *instances]))
         if not uuids:
             return SyncAttendanceOut(
                 ok=False,
-                error="No past meeting instances found yet — Zoom may still be "
+                error=instances_err
+                or "No past meeting instances found yet — Zoom may still be "
                 "finalizing the report (try again in a few minutes).",
             )
 
         # Ensure a Meeting row exists per instance so the Attendance tab resolves.
         for u in uuids:
-            existing = await db.scalar(
-                select(Meeting).where(Meeting.zoom_uuid == u)
-            )
+            existing = await db.scalar(select(Meeting).where(Meeting.zoom_uuid == u))
             if existing is None:
                 db.add(Meeting(zoom_uuid=u, zoom_meeting_id=cs.zoom_meeting_id))
         await db.commit()

@@ -39,18 +39,16 @@ async def _default_http_get(url: str, token: str) -> dict:
         return resp.json()
 
 
-async def _fetch_all_participants(
-    uuid: str,
-    *,
-    get_token: Callable[[], Awaitable[str]],
+async def _fetch_paged(
+    base_path: str,
+    enc: str,
+    token: str,
     http_get: Callable[[str, str], Awaitable[dict]],
 ) -> list[dict]:
-    token = await get_token()
-    enc = encode_meeting_uuid(uuid)
     participants: list[dict] = []
     next_page = ""
     while True:
-        url = f"{_API_BASE}/report/meetings/{enc}/participants?page_size=300"
+        url = f"{_API_BASE}{base_path}/{enc}/participants?page_size=300"
         if next_page:
             url += f"&next_page_token={next_page}"
         data = await http_get(url, token)
@@ -59,6 +57,35 @@ async def _fetch_all_participants(
         if not next_page:
             break
     return participants
+
+
+async def _fetch_all_participants(
+    uuid: str,
+    *,
+    get_token: Callable[[], Awaitable[str]],
+    http_get: Callable[[str, str], Awaitable[dict]],
+) -> list[dict]:
+    """Pull the participant list for a meeting instance.
+
+    The Reports API (`/report/meetings`) has the richest data (it carries our
+    `customer_key`) but needs the `report:read:*` scope AND a paid Zoom plan.
+    When that call is rejected for scope/plan reasons, fall back to
+    `/past_meetings` (the lighter `meeting:read:list_past_participants` scope
+    family, available on more plans) — identity then matches on email.
+    """
+    token = await get_token()
+    enc = encode_meeting_uuid(uuid)
+    try:
+        return await _fetch_paged("/report/meetings", enc, token, http_get)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code in (400, 401, 403):
+            logger.warning(
+                "reports API unavailable (%s) for %s; falling back to past_meetings",
+                e.response.status_code,
+                uuid,
+            )
+            return await _fetch_paged("/past_meetings", enc, token, http_get)
+        raise
 
 
 async def _write_finals(uuid: str, finals: list[dict]) -> None:
