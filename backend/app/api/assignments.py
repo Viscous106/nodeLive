@@ -23,6 +23,7 @@ from app.schemas.assignment import (
     SubmissionGrade,
     SubmissionOut,
 )
+from app.utils.email import send_grade_notification
 
 router = APIRouter(tags=["assignments"])
 
@@ -181,4 +182,17 @@ async def grade_submission(
     sub.graded_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(sub)
+
+    student = await db.get(User, sub.user_id)
+    assignment = await db.get(Assignment, sub.assignment_id)
+    if student and assignment and student.email:
+        await send_grade_notification(
+            to=student.email,
+            student_name=student.display_name,
+            assignment_title=assignment.title,
+            grade=sub.grade,
+            max_points=assignment.max_points,
+            feedback=sub.feedback,
+        )
+
     return sub
