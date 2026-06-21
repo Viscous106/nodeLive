@@ -71,6 +71,26 @@ export function useSubmissions(assignmentId: string, enabled: boolean) {
   })
 }
 
+export interface UploadUrlResult {
+  uploadUrl: string
+  fileKey: string
+}
+
+export function useUploadUrl(assignmentId: string) {
+  return useMutation({
+    mutationFn: ({
+      filename,
+      contentType,
+    }: {
+      filename: string
+      contentType: string
+    }) =>
+      api.post<UploadUrlResult>(
+        `/api/assignments/${assignmentId}/upload-url?filename=${encodeURIComponent(filename)}&contentType=${encodeURIComponent(contentType)}`,
+      ),
+  })
+}
+
 export function useGrade(assignmentId: string) {
   const qc = useQueryClient()
   return useMutation({

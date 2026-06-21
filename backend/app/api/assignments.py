@@ -5,6 +5,8 @@ enrollment in the assignment's course. One submission per student (resubmit
 replaces and resets the grade).
 """
 
+import re
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -22,7 +24,9 @@ from app.schemas.assignment import (
     SubmissionCreate,
     SubmissionGrade,
     SubmissionOut,
+    UploadUrlOut,
 )
+from app.utils.recording_storage import is_configured, presign_put
 
 router = APIRouter(tags=["assignments"])
 
@@ -163,6 +167,46 @@ async def list_submissions(
             select(Submission).where(Submission.assignment_id == assignment_id)
         )
     )
+
+
+@router.post(
+    "/assignments/{assignment_id}/upload-url",
+    response_model=UploadUrlOut,
+)
+async def get_upload_url(
+    assignment_id: str,
+    filename: str = Query(...),
+    content_type: str = Query(
+        default="application/octet-stream", alias="contentType"
+    ),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UploadUrlOut:
+    assignment = await _assignment_or_404(db, assignment_id)
+
+    is_staff = user.role in (UserRole.INSTRUCTOR, UserRole.ADMIN)
+    if not is_staff:
+        enrolled = await db.scalar(
+            select(Enrollment).where(
+                Enrollment.user_id == user.id,
+                Enrollment.course_id == assignment.course_id,
+            )
+        )
+        if enrolled is None:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "You are not enrolled in this course"
+            )
+
+    if not is_configured():
+        raise HTTPException(
+            status.HTTP_501_NOT_IMPLEMENTED,
+            "File storage not configured — submit a link or text instead",
+        )
+
+    safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)[:200]
+    key = f"submissions/{assignment_id}/{user.id}/{uuid.uuid4()}-{safe_name}"
+    upload_url = presign_put(key, content_type)
+    return UploadUrlOut(upload_url=upload_url, file_key=key)
 
 
 @router.patch("/submissions/{submission_id}", response_model=SubmissionOut)

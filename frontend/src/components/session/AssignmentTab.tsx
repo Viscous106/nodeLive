@@ -1,5 +1,5 @@
-import { FileText } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { FileText, Paperclip, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import {
   useMySubmission,
   useSubmissions,
   useSubmit,
+  useUploadUrl,
 } from '@/hooks/useAssignments'
 import type { Assignment, ClassSession, Submission } from '@/types'
 
@@ -47,13 +48,46 @@ function AssignmentHeader({ assignment }: { assignment: Assignment }) {
 function StudentAssignmentCard({ assignment }: { assignment: Assignment }) {
   const { data: submission } = useMySubmission(assignment.id)
   const submit = useSubmit(assignment.id)
+  const getUploadUrl = useUploadUrl(assignment.id)
   const [content, setContent] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (submission) setContent(submission.content)
   }, [submission])
 
   const graded = submission?.status === 'GRADED'
+  const busy = submit.isPending || uploading
+
+  async function handleSubmit() {
+    if (file) {
+      setUploading(true)
+      try {
+        const { uploadUrl, fileKey } = await getUploadUrl.mutateAsync({
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+        })
+        await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        })
+        submit.mutate(fileKey)
+        setFile(null)
+      } catch {
+        // getUploadUrl already toasts on 501 (storage not configured); on other
+        // errors fall through and let the user try text submission instead.
+      } finally {
+        setUploading(false)
+      }
+    } else {
+      submit.mutate(content)
+    }
+  }
+
+  const isFileSubmission = submission?.content.startsWith('submissions/')
 
   return (
     <Card>
@@ -75,26 +109,63 @@ function StudentAssignmentCard({ assignment }: { assignment: Assignment }) {
 
         <div className="space-y-2">
           <Label htmlFor={`sub-${assignment.id}`}>
-            Your submission (link or text)
+            Your submission
           </Label>
-          <Textarea
-            id={`sub-${assignment.id}`}
-            rows={3}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="https://github.com/you/repo  ·  or type your answer"
+
+          {file ? (
+            <div className="flex items-center gap-2 rounded-btn border border-border bg-page px-3 py-2">
+              <Paperclip className="h-4 w-4 shrink-0 text-text-muted" />
+              <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
+                {file.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = '' }}
+                className="text-text-muted hover:text-danger"
+                aria-label="Remove file"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <Textarea
+              id={`sub-${assignment.id}`}
+              rows={3}
+              value={isFileSubmission ? '' : content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="https://github.com/you/repo  ·  or type your answer"
+            />
+          )}
+
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) { setFile(f); setContent('') }
+            }}
           />
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => submit.mutate(content)}
-              disabled={!content.trim() || submit.isPending}
-            >
-              {submit.isPending && <Spinner />}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={handleSubmit} disabled={busy || (!file && !content.trim())}>
+              {busy && <Spinner />}
               {submission ? 'Resubmit' : 'Submit'}
+            </Button>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+            >
+              <Paperclip className="h-4 w-4" />
+              Attach file
             </Button>
             {submission?.status === 'SUBMITTED' && (
               <span className="text-xs text-text-muted">
-                Submitted — awaiting grade
+                {isFileSubmission
+                  ? `File submitted: ${submission.content.split('/').pop()}`
+                  : 'Submitted — awaiting grade'}
               </span>
             )}
           </div>
@@ -119,9 +190,25 @@ function GradeRow({
 
   return (
     <div className="space-y-2 rounded-btn border border-border p-3">
-      <p className="break-words text-sm text-text-secondary">
-        {submission.content}
-      </p>
+      {submission.content.startsWith('submissions/') ? (
+        <p className="flex items-center gap-1.5 text-sm text-text-secondary">
+          <Paperclip className="h-3.5 w-3.5 shrink-0" />
+          {submission.content.split('/').pop()}
+        </p>
+      ) : submission.content.startsWith('http') ? (
+        <a
+          href={submission.content}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="break-all text-sm text-primary underline"
+        >
+          {submission.content}
+        </a>
+      ) : (
+        <p className="break-words text-sm text-text-secondary">
+          {submission.content}
+        </p>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <div className="w-24">
           <Label htmlFor={`g-${submission.id}`}>Score</Label>
