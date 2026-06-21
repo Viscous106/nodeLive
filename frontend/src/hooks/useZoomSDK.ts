@@ -66,6 +66,16 @@ export function useZoomSDK(
     if (!clientRef.current || !rootRef.current || !user) return
     setStatus('joining')
     setErrorMsg('')
+    // Known Zoom SDK error codes → friendly messages
+    const ZOOM_ERROR_MESSAGES: Record<string, string> = {
+      '3707': 'Meeting not found — the meeting ID may be invalid or the meeting has ended.',
+      '3011': 'Incorrect meeting password.',
+      '3000': 'Zoom SDK failed to initialize. Try refreshing the page.',
+      '1': 'Meeting has not started yet.',
+      '3001': 'Meeting has ended.',
+      '200': 'Your Zoom credentials do not have permission to join this meeting.',
+    }
+
     try {
       const { signature, sdkKey, zoomMeetingId, password, zak } =
         await api.post<ZoomJoin>(`/api/sessions/${sessionId}/join`)
@@ -115,11 +125,24 @@ export function useZoomSDK(
       refreshAttendees()
     } catch (err: unknown) {
       let msg: string
-      if (err instanceof Error) {
+      if (err instanceof Error && 'status' in err) {
+        // ApiError from the server
+        const httpStatus = (err as { status: number }).status
+        if (httpStatus === 409) {
+          msg = 'No Zoom meeting has been configured for this session.'
+        } else if (httpStatus === 503) {
+          msg = 'Meeting video is not available in this environment.'
+        } else {
+          msg = err.message
+        }
+      } else if (err instanceof Error) {
         msg = err.message
       } else if (typeof err === 'object' && err !== null) {
         const e = err as Record<string, unknown>
-        msg = `${e.type ?? ''} ${e.reason ?? ''} ${e.errorCode ?? ''}`.trim()
+        const errorCode = e.errorCode
+        msg =
+          ZOOM_ERROR_MESSAGES[String(errorCode)] ??
+          `${e.type ?? ''} ${e.reason ?? ''} ${errorCode ?? ''}`.trim()
       } else {
         msg = String(err)
       }

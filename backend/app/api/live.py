@@ -173,6 +173,12 @@ async def join(
     if cs is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
 
+    if not settings.ZOOM_SDK_KEY or not settings.ZOOM_SDK_SECRET:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Zoom SDK credentials are not configured — video is unavailable here",
+        )
+
     # Only the session's designated host STARTS the meeting (the ZAK is for a
     # single Zoom account — granting it to every admin/instructor makes them all
     # join AS that one account, so they show up as duplicate identical users).
