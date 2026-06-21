@@ -127,7 +127,10 @@ export function useZoomSDK(
       // a few delayed retries (the view isn't ready the instant join() resolves).
       const forceGallery = () => {
         try {
-          c.setViewType?.('gallery')
+          const r = c.setViewType?.('gallery')
+          // setViewType returns an ExecutedResult (may be a Promise) — swallow a
+          // rejection if the view isn't ready; a later retry will succeed.
+          if (r && typeof r.catch === 'function') r.catch(() => {})
         } catch {
           /* view not ready yet — a retry will catch it */
         }
