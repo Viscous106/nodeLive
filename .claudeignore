@@ -27,7 +27,3 @@ tmp/
 uploads/
 pgdata/
 redisdata/
-
-# Reference prototype — NOT the production app (its files were ported to Python).
-# When you genuinely need to port from it, open the specific file explicitly.
-testing/
