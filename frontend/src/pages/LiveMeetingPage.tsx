@@ -103,6 +103,7 @@ export default function LiveMeetingPage() {
             status={status}
             errorMsg={errorMsg}
             onJoin={joinMeeting}
+            hasZoomMeeting={!!session?.zoomMeetingId}
           />
           <CueCardOverlay />
         </div>

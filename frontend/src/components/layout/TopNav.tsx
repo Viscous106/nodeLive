@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, Coins, GraduationCap, LogOut, Menu } from 'lucide-react'
+import { Bell, BellOff, ChevronDown, Coins, GraduationCap, LogOut, Menu } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { Avatar } from '@/components/ui/avatar'
@@ -41,13 +41,23 @@ export function TopNav() {
             <span className="sr-only">coins</span>
           </span>
         )}
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="rounded-full p-2 text-text-secondary hover:bg-border-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        <DropdownMenu
+          label="Notifications"
+          align="right"
+          trigger={
+            <span className="rounded-full p-2 text-text-secondary hover:bg-border-muted">
+              <Bell className="h-5 w-5" />
+            </span>
+          }
         >
-          <Bell className="h-5 w-5" />
-        </button>
+          <div className="border-b border-border px-3 py-2 text-sm font-semibold text-text-primary">
+            Notifications
+          </div>
+          <div className="flex flex-col items-center py-4 text-xs text-text-muted">
+            <BellOff className="mb-2 h-5 w-5 opacity-40" />
+            No notifications yet.
+          </div>
+        </DropdownMenu>
 
         {user && (
           <DropdownMenu
