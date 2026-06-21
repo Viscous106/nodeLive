@@ -22,6 +22,7 @@ from app.schemas.session import (
     ClassSessionPatch,
 )
 from app.services.enrollment import enroll_all_users
+from app.utils.email import send_session_scheduled
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -78,6 +79,29 @@ async def create_session(
     await enroll_all_users(db, body.course_id)
     await db.commit()
     await db.refresh(cs)
+
+    # Notify enrolled students (fire-and-forget — skips when SMTP unconfigured)
+    course = await db.get(Course, body.course_id)
+    enrolled_users = list(
+        await db.scalars(
+            select(User).join(
+                Enrollment, Enrollment.user_id == User.id
+            ).where(Enrollment.course_id == body.course_id)
+        )
+    )
+    recipients = [
+        (u.email, u.display_name)
+        for u in enrolled_users
+        if u.email and u.id != host_id
+    ]
+    scheduled_str = cs.scheduled_at.strftime("%a, %d %b %Y %H:%M UTC")
+    await send_session_scheduled(
+        recipients=recipients,
+        session_title=cs.title,
+        scheduled_at_str=scheduled_str,
+        course_title=course.title if course else body.course_id,
+    )
+
     return cs
 
 

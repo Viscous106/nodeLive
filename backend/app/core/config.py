@@ -81,6 +81,14 @@ class Settings(BaseSettings):
     # Presigned playback URL lifetime.
     RECORDING_URL_TTL_SECS: int = 300
 
+    # --- Email (SMTP) ---
+    # All empty by default → send silently skipped (graceful degrade).
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "noreply@linkhq.app"
+
     # --- AI ---
     # Primary provider: Anthropic Claude. Fallback: Groq (OpenAI-compatible) when
     # ANTHROPIC_API_KEY is unset or a call fails. If neither is set the AI routes
