@@ -8,6 +8,10 @@ export function useSession(id: string) {
     queryKey: ['session', id],
     queryFn: () => api.get<ClassSession>(`/api/sessions/${id}`),
     enabled: Boolean(id),
+    // While the class hasn't started, poll so a waiting student auto-enters the
+    // moment the host starts it (status → LIVE); stop polling once it's live.
+    refetchInterval: (query) =>
+      query.state.data?.status === 'LIVE' ? false : 5000,
   })
 }
 
