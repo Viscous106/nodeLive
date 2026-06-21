@@ -235,3 +235,33 @@ export interface Enrollment {
   email: string
   courseTitle: string
 }
+
+export interface Attendee {
+  userId: string
+  displayName: string
+  email: string
+  presentSeconds: number
+  attended: boolean
+}
+
+export interface AdminOverview {
+  totalMembers: number
+  students: number
+  instructors: number
+  admins: number
+  totalCourses: number
+  totalEnrollments: number
+  sessions: {
+    scheduled: number
+    live: number
+    ended: number
+    cancelled: number
+  }
+  upcoming: {
+    id: string
+    title: string
+    scheduledAt: string
+    durationMins: number
+    status: string
+  }[]
+}

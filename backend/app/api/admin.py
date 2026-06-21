@@ -10,23 +10,28 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_org_role
 from app.db.session import get_db
+from app.models.attendance import AttendanceFinal, Meeting
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.org import Invitation, InvitationStatus, Membership, Organization
 from app.models.user import User, UserRole
 from app.schemas.course import CourseCreate, CourseOut
 from app.schemas.org import (
+    AttendeeOut,
     EnrollmentCreate,
     EnrollmentOut,
     InvitationOut,
     InviteCreate,
     InvitePreview,
     MemberOut,
+    OverviewOut,
     RoleUpdate,
+    SessionStatusCounts,
+    UpcomingSessionOut,
 )
 from app.schemas.session import ClassSessionOut
 from app.services.enrollment import enroll_all_users
@@ -359,6 +364,148 @@ async def delete_enrollment(
     if enr is not None:
         await db.delete(enr)
         await db.commit()
+
+
+# --- attendance ---------------------------------------------------------------
+
+
+@router.get("/sessions/{session_id}/attendance", response_model=list[AttendeeOut])
+async def session_attendance(
+    session_id: str,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> list[AttendeeOut]:
+    cs = await db.get(ClassSession, session_id)
+    if cs is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+
+    # Fetch enrolled users for this session's course.
+    rows = (
+        (
+            await db.execute(
+                select(User)
+                .join(Enrollment, Enrollment.user_id == User.id)
+                .where(Enrollment.course_id == cs.course_id)
+                .order_by(User.display_name)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    # Find all Zoom meeting occurrences for this session's zoom_meeting_id.
+    # AttendanceFinal.user_id is the app user id (set via customerKey in join).
+    present: dict[str, int] = {}
+    if cs.zoom_meeting_id:
+        zoom_uuids = (
+            (
+                await db.execute(
+                    select(Meeting.zoom_uuid).where(
+                        Meeting.zoom_meeting_id == cs.zoom_meeting_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if zoom_uuids:
+            finals = (
+                (
+                    await db.execute(
+                        select(AttendanceFinal).where(
+                            AttendanceFinal.zoom_uuid.in_(zoom_uuids),
+                            AttendanceFinal.user_id.is_not(None),
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for af in finals:
+                uid = af.user_id
+                present[uid] = present.get(uid, 0) + af.present_seconds
+
+    return [
+        AttendeeOut(
+            user_id=u.id,
+            display_name=u.display_name,
+            email=u.email,
+            present_seconds=present.get(u.id, 0),
+            attended=u.id in present,
+        )
+        for u in rows
+    ]
+
+
+# --- overview -----------------------------------------------------------------
+
+
+@router.get("/overview", response_model=OverviewOut)
+async def overview(
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> OverviewOut:
+    # Member counts by role
+    role_rows = (
+        await db.execute(
+            select(Membership.role, func.count().label("n"))
+            .where(Membership.org_id == membership.org_id)
+            .group_by(Membership.role)
+        )
+    ).all()
+    role_map: dict[str, int] = {r.role.value: r.n for r in role_rows}
+
+    # Session counts by status
+    status_rows = (
+        await db.execute(
+            select(ClassSession.status, func.count().label("n")).group_by(
+                ClassSession.status
+            )
+        )
+    ).all()
+    status_map: dict[str, int] = {r.status.value: r.n for r in status_rows}
+
+    total_courses = await db.scalar(select(func.count()).select_from(Course))
+    total_enrollments = await db.scalar(select(func.count()).select_from(Enrollment))
+
+    now = datetime.now(UTC)
+    upcoming_rows = (
+        await db.scalars(
+            select(ClassSession)
+            .where(
+                ClassSession.status == SessionStatus.SCHEDULED,
+                ClassSession.scheduled_at >= now,
+            )
+            .order_by(ClassSession.scheduled_at)
+            .limit(5)
+        )
+    ).all()
+
+    total_members = sum(role_map.values())
+    return OverviewOut(
+        total_members=total_members,
+        students=role_map.get(UserRole.STUDENT.value, 0),
+        instructors=role_map.get(UserRole.INSTRUCTOR.value, 0),
+        admins=role_map.get(UserRole.ADMIN.value, 0),
+        total_courses=total_courses or 0,
+        total_enrollments=total_enrollments or 0,
+        sessions=SessionStatusCounts(
+            scheduled=status_map.get(SessionStatus.SCHEDULED.value, 0),
+            live=status_map.get(SessionStatus.LIVE.value, 0),
+            ended=status_map.get(SessionStatus.ENDED.value, 0),
+            cancelled=status_map.get(SessionStatus.CANCELLED.value, 0),
+        ),
+        upcoming=[
+            UpcomingSessionOut(
+                id=cs.id,
+                title=cs.title,
+                scheduled_at=cs.scheduled_at,
+                duration_mins=cs.duration_mins,
+                status=cs.status.value,
+            )
+            for cs in upcoming_rows
+        ],
+    )
 
 
 # --- public preview (signup screen) ------------------------------------------

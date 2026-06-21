@@ -106,6 +106,11 @@ async def seed() -> None:
 
         if instructor is not None and course is not None:
             print("Seed data already present — ensuring a LIVE session.")
+            # Ensure the seeded instructor always has ADMIN role so the admin
+            # dashboard is accessible on local dev and on re-deploys.
+            if instructor.role is not UserRole.ADMIN:
+                await assign_role(db, instructor, UserRole.ADMIN)
+                await db.commit()
             await _ensure_live_session(db)
             await _ensure_demo_recordings(db)
             await _ensure_all_enrollments(db)

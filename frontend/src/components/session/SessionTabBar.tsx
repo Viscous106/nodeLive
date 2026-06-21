@@ -28,6 +28,7 @@ export function SessionTabBar({
             disabled={locked}
             onClick={() => onChange(tab)}
             aria-current={active === tab ? 'page' : undefined}
+            title={locked ? 'Feedback unlocks once the session has ended' : undefined}
             className={cn(
               'relative -mb-px flex items-center gap-1.5 border-b-2 py-3 text-sm font-medium transition-colors',
               active === tab

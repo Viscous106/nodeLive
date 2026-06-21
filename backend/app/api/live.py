@@ -192,6 +192,12 @@ async def join(
                 status.HTTP_403_FORBIDDEN, "You are not enrolled in this course"
             )
 
+    if not settings.ZOOM_SDK_KEY or not settings.ZOOM_SDK_SECRET:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Zoom SDK credentials are not configured — video is unavailable here",
+        )
+
     password = ""
     zak = ""
     if zoom_meetings.is_configured():
