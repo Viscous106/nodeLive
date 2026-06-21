@@ -3,6 +3,9 @@ the UUID encoder, the idempotency-key builder, and the reconcile wiring via its
 injection seam. No DB/IO — the compliance-critical core, tested offline.
 """
 
+import httpx
+import pytest
+
 from app.utils.attendance import (
     build_event_id,
     encode_meeting_uuid,
@@ -217,3 +220,44 @@ async def test_run_reconcile_paginates_and_writes():
     final = captured["finals"][0]
     assert final["user_id"] == "u1"
     assert final["present_seconds"] == 50 * 60  # both spans unioned across pages
+
+
+@pytest.mark.asyncio
+async def test_reconcile_falls_back_to_past_meetings_on_scope_error():
+    """When the Reports API is rejected for scope/plan (4xx), reconcile retries
+    against /past_meetings (lighter scope), so attendance still computes."""
+    seen_urls: list[str] = []
+
+    async def fake_token():
+        return "tok"
+
+    async def fake_get(url, token):
+        seen_urls.append(url)
+        if "/report/meetings/" in url:
+            req = httpx.Request("GET", url)
+            resp = httpx.Response(400, text="missing scope", request=req)
+            raise httpx.HTTPStatusError("scope", request=req, response=resp)
+        return {
+            "participants": [
+                _p(
+                    email="a@x.com",
+                    name="A",
+                    join_time=f"{_DAY}T10:00:00Z",
+                    leave_time=f"{_DAY}T10:30:00Z",
+                )
+            ],
+            "next_page_token": "",
+        }
+
+    captured = {}
+
+    async def fake_write(uuid, finals):
+        captured["finals"] = finals
+
+    n = await run_reconcile(
+        "abc==", get_token=fake_token, http_get=fake_get, write=fake_write
+    )
+    assert n == 1
+    assert any("/report/meetings/" in u for u in seen_urls)  # tried report first
+    assert any("/past_meetings/" in u for u in seen_urls)  # then fell back
+    assert captured["finals"][0]["present_seconds"] == 30 * 60
