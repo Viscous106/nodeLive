@@ -86,9 +86,19 @@ export function useZoomSDK(
         customize: {
           video: {
             isResizable: true,
-            // Open in full-screen Gallery (init-only) instead of the small Ribbon.
-            defaultViewType: 'gallery' as SuspensionViewType,
-            viewSizes: { default: { width: viewW, height: viewH } },
+            // Ribbon is the ONLY Component-View layout that keeps the control
+            // toolbar (mic / camera / share / leave). Gallery & Speaker render as
+            // full-screen overlays that COVER the toolbar — which is why forcing
+            // Gallery removed every control (and hover revealed nothing: there was
+            // no toolbar to reveal). So we keep Ribbon and enlarge it to fill the
+            // panel, anchored top-left and non-draggable → a big video WITH the
+            // native controls. The view-switcher still lets users flip to Gallery.
+            defaultViewType: 'ribbon' as SuspensionViewType,
+            popper: { disableDraggable: true, anchorPosition: { top: 0, left: 0 } },
+            viewSizes: {
+              ribbon: { width: viewW, height: viewH },
+              default: { width: viewW, height: viewH },
+            },
           },
           meetingInfo: ['topic', 'host', 'mn', 'participant'],
         },
@@ -122,12 +132,13 @@ export function useZoomSDK(
         }
       })
 
-      // Force full-screen Gallery view. `defaultViewType` is unreliable in the
-      // Component View, so call setViewType('gallery') once we're connected, plus
-      // a few delayed retries (the view isn't ready the instant join() resolves).
-      const forceGallery = () => {
+      // Enforce Ribbon view (the layout that keeps the control toolbar). Zoom
+      // can remember a previously-chosen view (e.g. our old Gallery default), so
+      // re-assert Ribbon once connected, plus a few delayed retries (the view
+      // isn't ready the instant join() resolves).
+      const forceRibbon = () => {
         try {
-          const r = c.setViewType?.('gallery')
+          const r = c.setViewType?.('ribbon')
           // setViewType returns an ExecutedResult (may be a Promise) — swallow a
           // rejection if the view isn't ready; a later retry will succeed.
           if (r && typeof r.catch === 'function') r.catch(() => {})
@@ -136,10 +147,10 @@ export function useZoomSDK(
         }
       }
       c.on('connection-change', (p: { state?: string }) => {
-        if (p?.state === 'Connected') forceGallery()
+        if (p?.state === 'Connected') forceRibbon()
       })
-      forceGallery()
-      ;[400, 1200, 2500, 4000].forEach((ms) => window.setTimeout(forceGallery, ms))
+      forceRibbon()
+      ;[400, 1200, 2500, 4000].forEach((ms) => window.setTimeout(forceRibbon, ms))
 
       refreshAttendees()
     } catch (err: unknown) {
