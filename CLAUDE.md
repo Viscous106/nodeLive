@@ -39,8 +39,6 @@ Per-app commands live in the nested CLAUDE.md. The two CI gates:
 - **Serve `app.main:socket_app`, not `app`** — or WebSockets 404.
 - **COOP/COEP headers are required for the Zoom SDK** — `vite.config.ts` in dev,
   the backend `cross_origin_isolation` middleware in the bundled deploy.
-- **`testing/` is a reference prototype, NOT the app** — ported to Python, never
-  run in prod. Don't add features there (it's in `.claudeignore`).
 
 ## Conventions
 - Conventional Commits (`feat:`/`fix:`/`chore:`/`docs:`); signed, under each dev's
