@@ -2,20 +2,22 @@ import { useState } from 'react'
 
 import { EnrollmentsTab } from '@/components/admin/EnrollmentsTab'
 import { MembersTab } from '@/components/admin/MembersTab'
+import { OverviewTab } from '@/components/admin/OverviewTab'
 import { SessionsTab } from '@/components/admin/SessionsTab'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'members' | 'sessions' | 'enrollments'
+type TabKey = 'overview' | 'members' | 'sessions' | 'enrollments'
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
   { key: 'sessions', label: 'Sessions' },
   { key: 'members', label: 'Members & roles' },
   { key: 'enrollments', label: 'Enrollments' },
 ]
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<TabKey>('sessions')
+  const [tab, setTab] = useState<TabKey>('overview')
 
   return (
     <DashboardLayout>
@@ -50,6 +52,7 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6">
+        {tab === 'overview' && <OverviewTab />}
         {tab === 'sessions' && <SessionsTab />}
         {tab === 'members' && <MembersTab />}
         {tab === 'enrollments' && <EnrollmentsTab />}

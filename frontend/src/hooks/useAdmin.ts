@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '@/lib/api'
 import { toast } from '@/stores/toastStore'
 import type {
+  AdminOverview,
   ClassSession,
   Course,
   Enrollment,
@@ -226,5 +227,12 @@ export function useDeleteEnrollment() {
     },
     onError: () =>
       toast({ variant: 'error', title: 'Could not remove enrollment.' }),
+  })
+}
+
+export function useAdminOverview() {
+  return useQuery({
+    queryKey: ['admin', 'overview'],
+    queryFn: () => api.get<AdminOverview>('/api/admin/overview'),
   })
 }

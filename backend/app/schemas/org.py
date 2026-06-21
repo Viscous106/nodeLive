@@ -55,3 +55,29 @@ class EnrollmentOut(CamelModel):
 class EnrollmentCreate(CamelModel):
     user_id: str
     course_id: str
+
+
+class SessionStatusCounts(CamelModel):
+    scheduled: int
+    live: int
+    ended: int
+    cancelled: int
+
+
+class OverviewOut(CamelModel):
+    total_members: int
+    students: int
+    instructors: int
+    admins: int
+    total_courses: int
+    total_enrollments: int
+    sessions: SessionStatusCounts
+    upcoming: list["UpcomingSessionOut"]
+
+
+class UpcomingSessionOut(CamelModel):
+    id: str
+    title: str
+    scheduled_at: datetime
+    duration_mins: int
+    status: str
