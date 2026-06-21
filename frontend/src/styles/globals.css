@@ -3,31 +3,40 @@
 @import 'tailwindcss';
 @config '../../tailwind.config.ts';
 
+/* Enable class-based dark mode for the dark: Tailwind variant. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
 
-  /* Brand */
+  /* Brand (fixed across themes) */
   --color-primary: #2563eb;
   --color-primary-light: #3b82f6;
   --color-primary-dark: #1d4ed8;
   --color-danger: #dc2626;
   --color-gold: #f59e0b;
 
-  /* Backgrounds */
-  --bg-page: #eff6ff;
-  --bg-card: #ffffff;
+  /* Semantic surface tokens (overridden in .dark below) */
+  --color-page: #eff6ff;
+  --color-card: #ffffff;
+  --color-text-primary: #111827;
+  --color-text-secondary: #374151;
+  --color-text-muted: #6b7280;
+  --color-text-link: #2563eb;
+  --color-border: #e2e8f0;
+  --color-border-muted: #f1f5f9;
+
+  /* Legacy aliases (used by body + :focus-visible above) */
+  --bg-page: var(--color-page);
+  --bg-card: var(--color-card);
   --bg-dark-banner: #1e3a8a;
   --bg-code-editor: #1e1e1e;
-
-  /* Text */
-  --text-primary: #111827;
-  --text-secondary: #374151;
-  --text-muted: #6b7280;
-  --text-link: #2563eb;
-
-  /* Borders */
-  --border-default: #e2e8f0;
-  --border-muted: #f1f5f9;
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --text-link: var(--color-text-link);
+  --border-default: var(--color-border);
+  --border-muted: var(--color-border-muted);
   --border-focus: #3b82f6;
 
   /* Active tab indicator */
@@ -40,11 +49,24 @@
   --warning: #d97706;
 }
 
+/* Dark mode overrides */
+.dark {
+  --color-page: #0f172a;
+  --color-card: #1e293b;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-text-link: #60a5fa;
+  --color-border: #334155;
+  --color-border-muted: #1e293b;
+  --tab-inactive-color: #94a3b8;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--bg-page);
-  color: var(--text-primary);
+  background: var(--color-page);
+  color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
