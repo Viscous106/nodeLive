@@ -29,9 +29,7 @@ def _send_sync(to: str, subject: str, body_text: str, body_html: str) -> None:
         smtp.sendmail(settings.SMTP_FROM, to, msg.as_string())
 
 
-async def send_email(
-    to: str, subject: str, body_text: str, body_html: str
-) -> None:
+async def send_email(to: str, subject: str, body_text: str, body_html: str) -> None:
     if not is_configured():
         return
     try:

@@ -84,15 +84,13 @@ async def create_session(
     course = await db.get(Course, body.course_id)
     enrolled_users = list(
         await db.scalars(
-            select(User).join(
-                Enrollment, Enrollment.user_id == User.id
-            ).where(Enrollment.course_id == body.course_id)
+            select(User)
+            .join(Enrollment, Enrollment.user_id == User.id)
+            .where(Enrollment.course_id == body.course_id)
         )
     )
     recipients = [
-        (u.email, u.display_name)
-        for u in enrolled_users
-        if u.email and u.id != host_id
+        (u.email, u.display_name) for u in enrolled_users if u.email and u.id != host_id
     ]
     scheduled_str = cs.scheduled_at.strftime("%a, %d %b %Y %H:%M UTC")
     await send_session_scheduled(
