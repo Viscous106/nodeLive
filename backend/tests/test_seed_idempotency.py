@@ -62,3 +62,34 @@ async def test_seed_is_repeatable(session, seed_on_test_db):
     await seed_on_test_db.seed()
     assert await _email_count(session, "instructor@linkhq.dev") == 1
     assert await _email_count(session, "student1@linkhq.dev") == 1
+
+
+async def test_seed_backfills_missing_enrollments(session, seed_on_test_db):
+    # The reported prod bug: a user + a course exist with NO enrollment between
+    # them, so the user can't see that course's sessions. The seed backfill must
+    # repair it (single-org: every user enrolled in every course).
+    from sqlalchemy import func, select
+
+    from app.models.course import Course, Enrollment
+    from app.models.user import User, UserRole
+
+    session.add(
+        User(
+            id="u-orphan",
+            email="orphan@x.com",
+            hashed_password=hash_password("password123"),
+            display_name="Orphan",
+            role=UserRole.STUDENT,
+        )
+    )
+    session.add(Course(id="c-orphan", title="Orphan Course"))
+    await session.commit()
+
+    await seed_on_test_db.seed()
+
+    n = await session.scalar(
+        select(func.count())
+        .select_from(Enrollment)
+        .where(Enrollment.user_id == "u-orphan", Enrollment.course_id == "c-orphan")
+    )
+    assert n == 1  # backfilled

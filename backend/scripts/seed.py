@@ -17,6 +17,7 @@ from app.auth.security import hash_password
 from app.db.session import AsyncSessionLocal
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.user import User, UserRole
+from app.services.enrollment import ensure_enrolled_all_courses
 from app.services.roles import assign_role, get_or_create_membership
 
 _PASSWORD = "password123"
@@ -79,6 +80,19 @@ async def _ensure_demo_recordings(db) -> None:
         print(f"Ensured {created} demo recording(s) on past sessions.")
 
 
+async def _ensure_all_enrollments(db) -> None:
+    """Single-org backfill: every user enrolled in every course, so every
+    scheduled session is visible to every member. Idempotent; runs each deploy,
+    repairing rows missed when a course was created before some users existed."""
+    users = list(await db.scalars(select(User)))
+    total = 0
+    for u in users:
+        total += await ensure_enrolled_all_courses(db, u)
+    if total:
+        await db.commit()
+        print(f"Backfilled {total} enrollment(s) — all users × all courses.")
+
+
 async def seed() -> None:
     async with AsyncSessionLocal() as db:
         # Reuse any existing seed rows. Look users up by EMAIL (the unique
@@ -94,6 +108,7 @@ async def seed() -> None:
             print("Seed data already present — ensuring a LIVE session.")
             await _ensure_live_session(db)
             await _ensure_demo_recordings(db)
+            await _ensure_all_enrollments(db)
             return
 
         # --- users -----------------------------------------------------------
@@ -183,6 +198,7 @@ async def seed() -> None:
         await db.commit()
         await _ensure_live_session(db)
         await _ensure_demo_recordings(db)
+        await _ensure_all_enrollments(db)
 
     print(
         f"Seed complete: {sessions_added} sessions created incl. LIVE "
