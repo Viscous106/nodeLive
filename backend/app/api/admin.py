@@ -10,11 +10,12 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, nulls_last, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_org_role
 from app.db.session import get_db
+from app.models.attendance import AttendanceFinal, Meeting
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.org import Invitation, InvitationStatus, Membership, Organization
 from app.models.user import User, UserRole
@@ -359,6 +360,119 @@ async def delete_enrollment(
     if enr is not None:
         await db.delete(enr)
         await db.commit()
+
+
+# --- attendance tab -----------------------------------------------------------
+
+
+@router.get("/sessions/{session_id}/attendance")
+async def get_session_attendance(
+    session_id: str,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    cs = await db.get(ClassSession, session_id)
+    if cs is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+
+    # Build per-user present_seconds index from AttendanceFinal (keyed by user_id).
+    attendance_by_user: dict[str, int] = {}
+    if cs.zoom_meeting_id:
+        meeting = await db.scalar(
+            select(Meeting)
+            .where(Meeting.zoom_meeting_id == cs.zoom_meeting_id)
+            .order_by(nulls_last(Meeting.ended_at.desc()))
+            .limit(1)
+        )
+        if meeting is not None:
+            finals = await db.scalars(
+                select(AttendanceFinal).where(
+                    AttendanceFinal.zoom_uuid == meeting.zoom_uuid
+                )
+            )
+            for af in finals:
+                if af.user_id:
+                    attendance_by_user[af.user_id] = af.present_seconds
+
+    # Enrolled students for this session's course.
+    rows = (
+        (
+            await db.execute(
+                select(User)
+                .join(Enrollment, Enrollment.user_id == User.id)
+                .where(Enrollment.course_id == cs.course_id)
+                .order_by(User.display_name)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    threshold = int(cs.duration_mins * 60 * 0.5)
+    result_rows = [
+        {
+            "userId": u.id,
+            "displayName": u.display_name,
+            "email": u.email,
+            "presentSeconds": attendance_by_user.get(u.id, 0),
+            "attended": attendance_by_user.get(u.id, 0) >= threshold,
+        }
+        for u in rows
+    ]
+
+    return {
+        "sessionId": cs.id,
+        "sessionTitle": cs.title,
+        "durationMins": cs.duration_mins,
+        "rows": result_rows,
+    }
+
+
+# --- overview dashboard -------------------------------------------------------
+
+
+@router.get("/overview")
+async def get_overview(
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    members_count = await db.scalar(select(func.count()).select_from(User))
+    courses_count = await db.scalar(select(func.count()).select_from(Course))
+    enrollments_count = await db.scalar(select(func.count()).select_from(Enrollment))
+
+    # Sessions by status.
+    status_rows = (
+        await db.execute(
+            select(ClassSession.status, func.count().label("n")).group_by(
+                ClassSession.status
+            )
+        )
+    ).all()
+    sessions_by_status = {str(s.value): n for s, n in status_rows}
+
+    # Next 5 upcoming scheduled sessions.
+    upcoming_sessions = list(
+        await db.scalars(
+            select(ClassSession)
+            .where(
+                ClassSession.status == SessionStatus.SCHEDULED,
+                ClassSession.scheduled_at >= datetime.now(UTC),
+            )
+            .order_by(ClassSession.scheduled_at.asc())
+            .limit(5)
+        )
+    )
+
+    return {
+        "members": members_count or 0,
+        "courses": courses_count or 0,
+        "enrollments": enrollments_count or 0,
+        "sessionsByStatus": sessions_by_status,
+        "upcomingSessions": [
+            ClassSessionOut.model_validate(s).model_dump(by_alias=True)
+            for s in upcoming_sessions
+        ],
+    }
 
 
 # --- public preview (signup screen) ------------------------------------------

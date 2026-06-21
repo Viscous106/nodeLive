@@ -62,3 +62,21 @@ export function useLogout() {
     },
   })
 }
+
+export interface ProfileUpdateInput {
+  displayName?: string
+  avatarUrl?: string
+}
+
+export function useUpdateProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ProfileUpdateInput) =>
+      api.patch<User>('/api/auth/me', input),
+    onSuccess: (user) => {
+      qc.setQueryData(ME_KEY, user)
+      toast({ variant: 'success', title: 'Profile updated' })
+    },
+    onError: () => toast({ variant: 'error', title: 'Could not update profile.' }),
+  })
+}

@@ -1,5 +1,5 @@
-import { Bell, ChevronDown, Coins, GraduationCap, LogOut, Menu } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Bell, ChevronDown, Coins, GraduationCap, LogOut, Menu, Settings } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { Avatar } from '@/components/ui/avatar'
 import { DropdownItem, DropdownMenu } from '@/components/ui/dropdown-menu'
@@ -10,6 +10,7 @@ export function TopNav() {
   const openDrawer = useUiStore((s) => s.openDrawer)
   const { user } = useAuth()
   const logout = useLogout()
+  const navigate = useNavigate()
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-card px-4 sm:px-page-x">
@@ -68,6 +69,10 @@ export function TopNav() {
               </p>
               <p className="truncate text-xs text-text-muted">{user.email}</p>
             </div>
+            <DropdownItem onClick={() => navigate('/settings')}>
+              <Settings className="h-4 w-4" />
+              Settings
+            </DropdownItem>
             <DropdownItem
               onClick={() => logout.mutate()}
               className="text-danger hover:bg-danger/5"
