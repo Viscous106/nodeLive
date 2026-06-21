@@ -67,9 +67,8 @@ export function useZoomSDK(
     setStatus('joining')
     setErrorMsg('')
     try {
-      const { signature, sdkKey, zoomMeetingId } = await api.post<ZoomJoin>(
-        `/api/sessions/${sessionId}/join`,
-      )
+      const { signature, sdkKey, zoomMeetingId, password, zak } =
+        await api.post<ZoomJoin>(`/api/sessions/${sessionId}/join`)
 
       await clientRef.current.init({
         debug: false,
@@ -90,11 +89,11 @@ export function useZoomSDK(
         signature,
         sdkKey,
         meetingNumber: zoomMeetingId,
-        password: '',
+        password: password ?? '',
         userName: user.displayName,
         userEmail: user.email,
         customerKey: user.id.slice(0, 35),
-        zak: '',
+        zak: zak ?? '', // host token → instructor can START the meeting
       })
 
       setStatus('in-meeting')

@@ -57,3 +57,18 @@ services:
         sync: false
       - key: ZOOM_WEBHOOK_SECRET_TOKEN
         sync: false
+      # Server-to-Server OAuth — lets the app create real Zoom meetings + fetch
+      # the host ZAK so an instructor can START a class from inside linkHQ.
+      # Required S2S granular scopes (label → code):
+      #   "Create a meeting"     → meeting:write:meeting:admin
+      #   "View a meeting"       → meeting:read:meeting:admin
+      #   "Get a user's token"   → user:read:token:admin   (the ZAK endpoint)
+      # ZOOM_HOST_EMAIL = a real user (email) on the Zoom account that hosts.
+      - key: ZOOM_S2S_ACCOUNT_ID
+        sync: false
+      - key: ZOOM_S2S_CLIENT_ID
+        sync: false
+      - key: ZOOM_S2S_CLIENT_SECRET
+        sync: false
+      - key: ZOOM_HOST_EMAIL
+        sync: false

@@ -82,6 +82,8 @@ export interface ZoomJoin {
   signature: string
   sdkKey: string
   zoomMeetingId: string
+  password?: string
+  zak?: string // host token — lets an instructor start the meeting
 }
 
 export interface CueCard {

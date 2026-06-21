@@ -67,6 +67,7 @@ from app.schemas.live import (
     RankedUser,
     ZoomJoinOut,
 )
+from app.utils import zoom_meetings
 from app.utils.scoring import POLL_POINTS, poll_percentages, score_answer
 from app.utils.zoom_jwt import generate_zoom_signature
 from app.workers import quiz_tasks
@@ -171,8 +172,6 @@ async def join(
     cs = await db.get(ClassSession, session_id)
     if cs is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
-    if not cs.zoom_meeting_id:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Session has no Zoom meeting yet")
 
     is_host = user.id == cs.host_id or user.role in (
         UserRole.INSTRUCTOR,
@@ -190,6 +189,33 @@ async def join(
                 status.HTTP_403_FORBIDDEN, "You are not enrolled in this course"
             )
 
+    password = ""
+    zak = ""
+    if zoom_meetings.is_configured():
+        # Real meetings: the host gets (or creates) one + a ZAK to START it;
+        # students join the same meeting once the host has started it.
+        if is_host:
+            meeting = await zoom_meetings.ensure_meeting(cs.zoom_meeting_id, cs.title)
+            if meeting["id"] != cs.zoom_meeting_id:
+                cs.zoom_meeting_id = meeting["id"]
+                await db.commit()
+            password = meeting["password"]
+            zak = await zoom_meetings.get_host_zak()
+        else:
+            existing = (
+                await zoom_meetings.get_meeting(cs.zoom_meeting_id)
+                if cs.zoom_meeting_id
+                else None
+            )
+            if existing is None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "The class hasn't been started by the host yet",
+                )
+            password = existing.get("password", "")
+    elif not cs.zoom_meeting_id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Session has no Zoom meeting yet")
+
     role = 1 if is_host else 0
     signature = generate_zoom_signature(
         settings.ZOOM_SDK_KEY,
@@ -201,6 +227,8 @@ async def join(
         signature=signature,
         sdk_key=settings.ZOOM_SDK_KEY,
         zoom_meeting_id=cs.zoom_meeting_id,
+        password=password,
+        zak=zak,
     )
 
 
