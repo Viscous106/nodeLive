@@ -65,6 +65,7 @@ def test_sanitize_strips_tags_and_role_markers():
 async def test_ai_chat_501_when_unconfigured(client, session, monkeypatch):
     await _scenario(session)
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(settings, "GROQ_API_KEY", "")  # neither provider → 501
     await _login(client, "stu@example.com")
     r = await client.post("/api/sessions/s1/live/ai-chat", json={"message": "hi"})
     assert r.status_code == 501
@@ -124,3 +125,28 @@ async def test_ai_chat_requires_enrollment(client, session, monkeypatch):
     await _login(client, "outsider@example.com")
     r = await client.post("/api/sessions/s1/live/ai-chat", json={"message": "hi"})
     assert r.status_code == 403
+
+
+async def test_ai_chat_works_with_only_groq_configured(client, session, monkeypatch):
+    # No Anthropic key, Groq set → the route is reachable (fallback provider).
+    _host, _student = await _scenario(session)
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(settings, "GROQ_API_KEY", "gk-test")
+
+    async def cap_user(session_id, user_id, event, payload):
+        pass
+
+    monkeypatch.setattr(emit_mod, "to_user", cap_user)
+
+    async def fake_captions(redis, session_id):
+        return []
+
+    monkeypatch.setattr(live_mod, "get_captions", fake_captions)
+
+    async def fake_stream(system, message):
+        yield "ok"
+
+    monkeypatch.setattr(live_mod, "_stream_ai_reply", fake_stream)
+    await _login(client, "stu@example.com")
+    r = await client.post("/api/sessions/s1/live/ai-chat", json={"message": "hi"})
+    assert r.status_code == 200  # Groq fallback satisfies the AI-configured gate

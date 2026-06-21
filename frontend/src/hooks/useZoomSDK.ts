@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import * as ZoomSDK from '@zoom/meetingsdk/embedded'
+import type { SuspensionViewType } from '@zoom/meetingsdk/embedded'
 
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
@@ -70,16 +71,24 @@ export function useZoomSDK(
       const { signature, sdkKey, zoomMeetingId, password, zak } =
         await api.post<ZoomJoin>(`/api/sessions/${sessionId}/join`)
 
+      // Size the Zoom view to the actual panel so the video fills the space
+      // instead of rendering at a fixed 1000×600 (leaving a black gap).
+      const root = rootRef.current
+      const viewW = Math.max(root.clientWidth || 0, 320)
+      const viewH = Math.max(root.clientHeight || 0, 240)
+
       await clientRef.current.init({
         debug: false,
-        zoomAppRoot: rootRef.current,
+        zoomAppRoot: root,
         language: 'en-US',
         patchJsMedia: true,
         leaveOnPageUnload: true,
         customize: {
           video: {
             isResizable: true,
-            viewSizes: { default: { width: 1000, height: 600 } },
+            // Open in full-screen Gallery (init-only) instead of the small Ribbon.
+            defaultViewType: 'gallery' as SuspensionViewType,
+            viewSizes: { default: { width: viewW, height: viewH } },
           },
           meetingInfo: ['topic', 'host', 'mn', 'participant'],
         },
@@ -112,6 +121,23 @@ export function useZoomSDK(
           })
         }
       })
+
+      // Force full-screen Gallery view. `defaultViewType` is unreliable in the
+      // Component View, so call setViewType('gallery') once we're connected, plus
+      // a few delayed retries (the view isn't ready the instant join() resolves).
+      const forceGallery = () => {
+        try {
+          c.setViewType?.('gallery')
+        } catch {
+          /* view not ready yet — a retry will catch it */
+        }
+      }
+      c.on('connection-change', (p: { state?: string }) => {
+        if (p?.state === 'Connected') forceGallery()
+      })
+      forceGallery()
+      ;[400, 1200, 2500, 4000].forEach((ms) => window.setTimeout(forceGallery, ms))
+
       refreshAttendees()
     } catch (err: unknown) {
       let msg: string

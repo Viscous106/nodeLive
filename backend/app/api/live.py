@@ -67,7 +67,7 @@ from app.schemas.live import (
     RankedUser,
     ZoomJoinOut,
 )
-from app.utils import zoom_meetings
+from app.utils import llm, zoom_meetings
 from app.utils.scoring import POLL_POINTS, poll_percentages, score_answer
 from app.utils.zoom_jwt import generate_zoom_signature
 from app.workers import quiz_tasks
@@ -896,18 +896,10 @@ def _ai_system_prompt(title: str, captions: list[str]) -> str:
 
 
 async def _stream_ai_reply(system: str, message: str) -> AsyncIterator[str]:
-    """Yield Claude's reply in text chunks. Isolated so tests can stub it."""
-    from anthropic import AsyncAnthropic
-
-    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    async with client.messages.stream(
-        model=settings.ANTHROPIC_MODEL,
-        max_tokens=1024,
-        system=system,
-        messages=[{"role": "user", "content": message}],
-    ) as stream:
-        async for text in stream.text_stream:
-            yield text
+    """Yield the LLM reply in text chunks (Anthropic primary, Groq fallback).
+    Isolated so tests can stub it; provider logic lives in `utils/llm.py`."""
+    async for text in llm.stream_chat(system, message):
+        yield text
 
 
 @router.post("/sessions/{session_id}/live/ai-chat")
@@ -918,9 +910,10 @@ async def ai_chat(
     cs: ClassSession = Depends(_member_session),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Stream a Claude answer (using the live transcript) to the asker's private
-    room. Returns 501 when no API key is configured so the UI can degrade."""
-    if not settings.ANTHROPIC_API_KEY:
+    """Stream an LLM answer (using the live transcript) to the asker's private
+    room. Anthropic primary, Groq fallback; 501 when neither key is set so the UI
+    can degrade."""
+    if not llm.is_configured():
         raise HTTPException(
             status.HTTP_501_NOT_IMPLEMENTED, "AI chat is not configured"
         )
