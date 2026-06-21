@@ -18,7 +18,7 @@ export function SessionTabBar({
   onChange: (tab: SessionTab) => void
 }) {
   return (
-    <div className="flex gap-6 border-b border-border">
+    <div className="flex gap-4 overflow-x-auto border-b border-border sm:gap-6">
       {tabs.map((tab) => {
         const locked = tab === 'Feedback' && status !== 'ENDED'
         return (
@@ -30,7 +30,7 @@ export function SessionTabBar({
             aria-current={active === tab ? 'page' : undefined}
             title={locked ? 'Feedback unlocks once the session has ended' : undefined}
             className={cn(
-              'relative -mb-px flex items-center gap-1.5 border-b-2 py-3 text-sm font-medium transition-colors',
+              'relative -mb-px flex shrink-0 items-center gap-1.5 border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors',
               active === tab
                 ? 'border-primary text-primary'
                 : 'border-transparent text-text-muted hover:text-text-secondary',

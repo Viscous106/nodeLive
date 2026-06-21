@@ -33,7 +33,7 @@ export default function AdminPage() {
       <div
         role="tablist"
         aria-label="Admin sections"
-        className="mt-5 flex gap-1 border-b border-border"
+        className="mt-5 flex gap-1 overflow-x-auto border-b border-border"
       >
         {TABS.map((t) => (
           <button
@@ -42,7 +42,7 @@ export default function AdminPage() {
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              '-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
+              '-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors sm:px-4',
               tab === t.key
                 ? 'border-primary text-primary'
                 : 'border-transparent text-text-secondary hover:text-text-primary',
