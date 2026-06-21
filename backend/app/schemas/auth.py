@@ -33,3 +33,8 @@ class UserOut(CamelModel):
     role: UserRole
     avatar_url: str | None = None
     coins: int
+
+
+class ProfileUpdate(CamelModel):
+    display_name: str | None = None
+    avatar_url: str | None = None

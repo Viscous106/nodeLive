@@ -1,21 +1,25 @@
 import { useState } from 'react'
 
+import { AttendanceTab } from '@/components/admin/AttendanceTab'
 import { EnrollmentsTab } from '@/components/admin/EnrollmentsTab'
 import { MembersTab } from '@/components/admin/MembersTab'
+import { OverviewTab } from '@/components/admin/OverviewTab'
 import { SessionsTab } from '@/components/admin/SessionsTab'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'members' | 'sessions' | 'enrollments'
+type TabKey = 'overview' | 'sessions' | 'members' | 'enrollments' | 'attendance'
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
   { key: 'sessions', label: 'Sessions' },
   { key: 'members', label: 'Members & roles' },
   { key: 'enrollments', label: 'Enrollments' },
+  { key: 'attendance', label: 'Attendance' },
 ]
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<TabKey>('sessions')
+  const [tab, setTab] = useState<TabKey>('overview')
 
   return (
     <DashboardLayout>
@@ -29,7 +33,7 @@ export default function AdminPage() {
       <div
         role="tablist"
         aria-label="Admin sections"
-        className="mt-5 flex gap-1 border-b border-border"
+        className="mt-5 flex gap-1 overflow-x-auto border-b border-border"
       >
         {TABS.map((t) => (
           <button
@@ -38,7 +42,7 @@ export default function AdminPage() {
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              '-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
+              '-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors sm:px-4',
               tab === t.key
                 ? 'border-primary text-primary'
                 : 'border-transparent text-text-secondary hover:text-text-primary',
@@ -50,9 +54,11 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6">
+        {tab === 'overview' && <OverviewTab />}
         {tab === 'sessions' && <SessionsTab />}
         {tab === 'members' && <MembersTab />}
         {tab === 'enrollments' && <EnrollmentsTab />}
+        {tab === 'attendance' && <AttendanceTab />}
       </div>
     </DashboardLayout>
   )

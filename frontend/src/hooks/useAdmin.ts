@@ -228,3 +228,46 @@ export function useDeleteEnrollment() {
       toast({ variant: 'error', title: 'Could not remove enrollment.' }),
   })
 }
+
+// --- Attendance -----------------------------------------------------------
+
+export interface AttendanceRow {
+  userId: string
+  displayName: string
+  email: string
+  presentSeconds: number
+  attended: boolean
+}
+
+export interface SessionAttendance {
+  sessionId: string
+  sessionTitle: string
+  durationMins: number
+  rows: AttendanceRow[]
+}
+
+export function useSessionAttendance(sessionId: string | null) {
+  return useQuery({
+    queryKey: ['admin', 'attendance', sessionId],
+    queryFn: () =>
+      api.get<SessionAttendance>(`/api/admin/sessions/${sessionId}/attendance`),
+    enabled: Boolean(sessionId),
+  })
+}
+
+// --- Overview ------------------------------------------------------------
+
+export interface AdminOverview {
+  members: number
+  courses: number
+  enrollments: number
+  sessionsByStatus: Record<string, number>
+  upcomingSessions: ClassSession[]
+}
+
+export function useAdminOverview() {
+  return useQuery({
+    queryKey: ['admin', 'overview'],
+    queryFn: () => api.get<AdminOverview>('/api/admin/overview'),
+  })
+}

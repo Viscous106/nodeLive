@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.org import Invitation, InvitationStatus
 from app.models.user import User, UserRole
-from app.schemas.auth import LoginIn, SignupIn, UserOut
+from app.schemas.auth import LoginIn, ProfileUpdate, SignupIn, UserOut
 from app.services.enrollment import ensure_enrolled_all_courses
 from app.services.roles import assign_role, maybe_bootstrap_admin
 
@@ -121,4 +121,25 @@ async def logout(response: Response) -> None:
 
 @router.get("/me", response_model=UserOut)
 async def me(user: User = Depends(get_current_user)) -> User:
+    return user
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_me(
+    body: ProfileUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    if body.display_name is not None:
+        name = body.display_name.strip()
+        if not name:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "display_name cannot be blank",
+            )
+        user.display_name = name
+    if body.avatar_url is not None:
+        user.avatar_url = body.avatar_url
+    await db.commit()
+    await db.refresh(user)
     return user
