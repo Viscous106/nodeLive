@@ -46,13 +46,16 @@ async def create_session(
     if await db.get(Course, body.course_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
 
+    # The scheduler (admin/instructor) may hand the host role to ANY member —
+    # an instructor, another admin, or a student presenter. That person becomes
+    # `host_id`, and ONLY they are the Zoom host (the single ZAK holder who can
+    # start the meeting); everyone else joins as a named participant.
     host_id = user.id
-    if user.role is UserRole.ADMIN and body.host_id:
+    if body.host_id and user.role in (UserRole.ADMIN, UserRole.INSTRUCTOR):
         host = await db.get(User, body.host_id)
-        if host is None or host.role not in (UserRole.INSTRUCTOR, UserRole.ADMIN):
+        if host is None:
             raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Host must be an instructor or admin",
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "Host user not found"
             )
         host_id = body.host_id
 
