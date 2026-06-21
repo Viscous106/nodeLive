@@ -36,6 +36,7 @@ export function useZoomSDK(
   user: User | null,
 ) {
   const clientRef = useRef<EmbeddedClient | null>(null)
+  const resizeObsRef = useRef<ResizeObserver | null>(null)
   const [status, setStatus] = useState<ZoomStatus>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const setAttendeeCount = useLiveClassStore((s) => s.setAttendeeCount)
@@ -44,6 +45,8 @@ export function useZoomSDK(
     const client = ZoomMtgEmbedded.createClient()
     clientRef.current = client
     return () => {
+      resizeObsRef.current?.disconnect()
+      resizeObsRef.current = null
       try {
         ZoomMtgEmbedded.destroyClient()
       } catch {
@@ -71,11 +74,18 @@ export function useZoomSDK(
       const { signature, sdkKey, zoomMeetingId, password, zak } =
         await api.post<ZoomJoin>(`/api/sessions/${sessionId}/join`)
 
-      // Size the Zoom view to the actual panel so the video fills the space
-      // instead of rendering at a fixed 1000×600 (leaving a black gap).
+      // Size the Zoom view to the actual panel. The Component View renders a
+      // FIXED-pixel suspension window — it never reflows itself — so we measure
+      // the panel now and keep it in sync with a ResizeObserver (below). Without
+      // that, any viewport change after join (e.g. opening DevTools, resizing)
+      // leaves the window at its old, oversized height and it overflows the
+      // panel, forcing a scroll to reach the toolbar.
       const root = rootRef.current
-      const viewW = Math.max(root.clientWidth || 0, 320)
-      const viewH = Math.max(root.clientHeight || 0, 240)
+      const panelSize = () => ({
+        width: Math.max(Math.floor(root.getBoundingClientRect().width), 320),
+        height: Math.max(Math.floor(root.getBoundingClientRect().height), 240),
+      })
+      const initialSize = panelSize()
 
       await clientRef.current.init({
         debug: false,
@@ -86,9 +96,14 @@ export function useZoomSDK(
         customize: {
           video: {
             isResizable: true,
-            // Open in full-screen Gallery (init-only) instead of the small Ribbon.
-            defaultViewType: 'gallery' as SuspensionViewType,
-            viewSizes: { default: { width: viewW, height: viewH } },
+            // Ribbon is the ONLY Component-View layout that keeps the control
+            // toolbar (mic / camera / share / leave); Gallery & Speaker render as
+            // overlays that hide it. Anchor it top-left + non-draggable so it
+            // fills the panel instead of floating at a fixed offset (which also
+            // pushed the toolbar off-screen).
+            defaultViewType: 'ribbon' as SuspensionViewType,
+            popper: { disableDraggable: true, anchorPosition: { top: 0, left: 0 } },
+            viewSizes: { default: initialSize, ribbon: initialSize },
           },
           meetingInfo: ['topic', 'host', 'mn', 'participant'],
         },
@@ -122,21 +137,46 @@ export function useZoomSDK(
         }
       })
 
-      // Force full-screen Gallery view. `defaultViewType` is unreliable in the
-      // Component View, so call setViewType('gallery') once we're connected, plus
-      // a few delayed retries (the view isn't ready the instant join() resolves).
-      const forceGallery = () => {
+      // Enforce Ribbon (the layout with the toolbar). Zoom can remember a prior
+      // view, so re-assert it once connected plus a few delayed retries (the view
+      // isn't ready the instant join() resolves).
+      const forceRibbon = () => {
         try {
-          c.setViewType?.('gallery')
+          const r = c.setViewType?.('ribbon')
+          if (r && typeof r.catch === 'function') r.catch(() => {})
         } catch {
           /* view not ready yet — a retry will catch it */
         }
       }
+      // Keep the fixed-size Zoom window matched to the panel. The Component View
+      // doesn't reflow on its own, so re-apply viewSizes whenever the panel
+      // changes size — this is what stops the window overflowing and forcing a
+      // scroll to reach the toolbar.
+      const applySize = () => {
+        const sz = panelSize()
+        try {
+          c.updateVideoOptions?.({ viewSizes: { default: sz, ribbon: sz } })
+        } catch {
+          /* not ready yet */
+        }
+      }
       c.on('connection-change', (p: { state?: string }) => {
-        if (p?.state === 'Connected') forceGallery()
+        if (p?.state === 'Connected') {
+          forceRibbon()
+          applySize()
+        }
       })
-      forceGallery()
-      ;[400, 1200, 2500, 4000].forEach((ms) => window.setTimeout(forceGallery, ms))
+      forceRibbon()
+      ;[400, 1200, 2500, 4000].forEach((ms) =>
+        window.setTimeout(() => {
+          forceRibbon()
+          applySize()
+        }, ms),
+      )
+
+      resizeObsRef.current?.disconnect()
+      resizeObsRef.current = new ResizeObserver(() => applySize())
+      resizeObsRef.current.observe(root)
 
       refreshAttendees()
     } catch (err: unknown) {
@@ -155,6 +195,8 @@ export function useZoomSDK(
   }, [rootRef, sessionId, user, refreshAttendees])
 
   const leaveMeeting = useCallback(async () => {
+    resizeObsRef.current?.disconnect()
+    resizeObsRef.current = null
     try {
       await clientRef.current?.leaveMeeting()
     } catch {
