@@ -122,8 +122,8 @@ function GradeRow({
       <p className="break-words text-sm text-text-secondary">
         {submission.content}
       </p>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="w-24">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:flex-wrap">
+        <div className="w-full sm:w-24">
           <Label htmlFor={`g-${submission.id}`}>Score</Label>
           <Input
             id={`g-${submission.id}`}
@@ -134,7 +134,7 @@ function GradeRow({
             onChange={(e) => setScore(e.target.value)}
           />
         </div>
-        <div className="min-w-[160px] flex-1">
+        <div className="flex-1">
           <Label htmlFor={`f-${submission.id}`}>Feedback</Label>
           <Input
             id={`f-${submission.id}`}
@@ -143,21 +143,23 @@ function GradeRow({
             placeholder="Optional"
           />
         </div>
-        <Button
-          size="sm"
-          disabled={score === '' || grade.isPending}
-          onClick={() =>
-            grade.mutate({
-              id: submission.id,
-              grade: Number(score),
-              feedback: feedback || undefined,
-            })
-          }
-        >
-          {grade.isPending && <Spinner />}
-          Save
-        </Button>
-        {submission.status === 'GRADED' && <Badge variant="success">Graded</Badge>}
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            disabled={score === '' || grade.isPending}
+            onClick={() =>
+              grade.mutate({
+                id: submission.id,
+                grade: Number(score),
+                feedback: feedback || undefined,
+              })
+            }
+          >
+            {grade.isPending && <Spinner />}
+            Save
+          </Button>
+          {submission.status === 'GRADED' && <Badge variant="success">Graded</Badge>}
+        </div>
       </div>
     </div>
   )
