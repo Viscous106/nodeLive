@@ -3,54 +3,45 @@
 _Living status doc. Update before ending a long session; read it to resume._
 _Last updated: 2026-06-21._
 
-## Where things stand
+## Deployment
+- **Live:** https://linkhq.onrender.com (Render free tier — sleeps when idle,
+  first request wakes it ~30–60s; OOMs past ~15 concurrent users).
+- Builds `main` via Docker; auto-deploys on push. `start.sh`: alembic → seed (bg)
+  → Celery worker (`solo` pool) → uvicorn `app.main:socket_app`.
+- Demo logins (password `password123`): `instructor@linkhq.dev` (host/admin),
+  `student1@linkhq.dev`, `student2@linkhq.dev`.
 
-### ✅ Done and on `origin/main`
-- **M7 — Recording ingest + watch-tracking** (Dev B). Backend (webhooks →
-  ingest → R2 storage → session-scoped playback/heartbeat/watch-status) +
-  frontend recording player. 184 backend tests + frontend build green.
-- **Integration**: M7 was rebased cleanly onto the partner's admin/enrollment
-  work; `main` is the single source of truth.
-- **Deploy is LIVE** at https://linkhq.onrender.com (Render, free tier — sleeps
-  when idle, first request wakes it in ~30–60s). `/health` ok, DB ready, all
-  recording API routes serving. The Render service now builds **`main`**
-  (`render.yaml` pins `branch: main`).
-- **Seed fix**: seed is idempotent by **email** (a legacy-id row was crashing the
-  deploy with `duplicate key ix_users_email`). Fixed + regression-tested.
+## ✅ Done this run (all on `main`, live-verified)
+- **M7 Recording ingest + watch-tracking** — webhook→ingest→R2 storage, session-
+  scoped playback/heartbeat/watch-status, `RecordingPlayerPage`. Seek-to-end ≠ 100%.
+  Runbook: `docs/runbooks/m7-recording-r2.md`.
+- **Live Zoom meetings (S2S auto-create + host ZAK)** — host's "Join video"
+  auto-creates a real Zoom meeting + gets the ZAK to start it; everyone else joins
+  as a named participant; host-start flips the session **LIVE**; students see
+  "Waiting for the host…" then **auto-enter**. Verified host+student in a browser.
+- **Fixes:** socket.io prod-origin CORS (403); single-host ZAK (no duplicate
+  identity); assign any member as host; idempotent seed (email-keyed) + enrollment
+  backfill; dashboard auto-refresh; free-tier memory trim (solo worker); deploy
+  polish (HEAD / → 200, bg seed).
+- **Docs synced** (this run): all milestone + branch docs marked to real state;
+  `plan.md` §7.4a documents the **Anthropic→Groq LLM fallback**.
 
-### 🔄 Pending — committed code, NOT yet pushed (uncommitted in working tree)
-1. **Visible demo recording** so M7 is click-through on the live site without R2:
-   - `backend/app/api/recordings.py` — `/recording/url` serves an external
-     `http(s)` key as-is (CDN-hosted recordings), not only presigned R2.
-   - `backend/scripts/seed.py` — seeds a public, COEP-safe demo MP4 onto the 3
-     past sessions, on every deploy.
-   - `backend/tests/test_recording_api.py` — passthrough test. Suite: 185 green.
-   - Verified locally: `/recording/url` for `seed-session-past-1` returns the MP4.
-2. **Context hygiene** (this batch): slim root `CLAUDE.md` + `backend/CLAUDE.md`
-   + `frontend/CLAUDE.md`, `.claudeignore`, this file.
+## 🔑 Required prod env (Render dashboard, `sync:false`)
+Set + working: `ZOOM_SDK_KEY/SECRET`, `ZOOM_S2S_ACCOUNT_ID/CLIENT_ID/CLIENT_SECRET`,
+`ZOOM_HOST_EMAIL` (S2S scopes: `meeting:write:meeting:admin`, `meeting:read:meeting:admin`,
+`user:read:token:admin`). **Not set:** `ANTHROPIC_API_KEY` (→ AI is 501 until set,
+or wire Groq), `R2_*` (→ recording playback 501; demo recording is seeded).
 
-### ⏳ Not started / needs the user
-- **T13 — real R2 recordings**: needs a Cloudflare R2 bucket + token (+ optional
-  Zoom cloud recording for auto-ingest). Runbook: `docs/runbooks/m7-recording-r2.md`.
-  The demo recording above proves the whole player/heartbeat/watch-% pipeline
-  works on the live site in the meantime.
-- **M8+** (post-meeting AI, analytics) — future milestones, not begun.
-
-## How to SEE the app working
-1. Open https://linkhq.onrender.com (wait for it to wake).
-2. Log in — demo users, password `password123`:
-   `instructor@linkhq.dev` (admin/instructor) · `student1@linkhq.dev` (student).
-3. Dashboard → **Continue Watching** → click a **Past Lecture** → the recording
-   player opens; the video plays, "% watched" climbs, and seeking to the end
-   keeps the % partial (the compliance watch-tracking). _← appears after the
-   pending demo-recording commit is pushed + redeployed._
-
-## Next action
-Push the pending commits → Render auto-redeploys `main` → `start.sh` re-seeds →
-demo recordings appear. Commit commands are in the chat; nothing is committed yet
-(the repo owner runs git).
+## ⬜ Not started / next
+- **Groq LLM fallback** — documented (`plan.md` §7.4a, config `GROQ_API_KEY`/`GROQ_MODEL`);
+  **code not wired** — `live.py`'s AI chat still calls Anthropic only. Implement the
+  `chat()` wrapper so AI works via Groq without an Anthropic key.
+- **M8** post-meeting AI pipeline (transcript→summary→notes→auto-quiz), **M9** AI
+  recommendations/analytics. Dev A: admin **Attendance + Overview** tabs.
+- **MP** hardening: **paid Render Starter (2GB) + dedicated worker** for the
+  50-device demo (free tier OOMs); Sentry, k6 load test, GH Actions deploy.
 
 ## Key facts
-- Deploy entrypoint: `backend/start.sh` (migrate → seed → celery worker → uvicorn).
 - Serve `app.main:socket_app` (not `app`). COOP/COEP needed for the Zoom SDK.
 - Compliance primitive: `backend/app/utils/intervals.py` (union of intervals).
+- `is_zoom_host = (user.id == cs.host_id)` — only the session host gets the ZAK.

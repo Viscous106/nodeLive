@@ -38,10 +38,12 @@ async def create_session(
     user: User = Depends(_privileged),
     db: AsyncSession = Depends(get_db),
 ) -> ClassSession:
-    """Schedule a class session. Instructor/admin only; the creator is the host.
+    """Schedule a class session. Instructor/admin only; the creator is the host
+    unless `hostId` assigns another member (any role).
 
-    v1 takes a manually-entered `zoomMeetingId`; auto-creating a real Zoom
-    meeting via S2S is a documented fast-follow.
+    `zoomMeetingId` may be entered manually, but the host's first "Join video"
+    auto-creates a real Zoom meeting via S2S (replacing the placeholder) and
+    fetches the host ZAK to start it — see `app/utils/zoom_meetings.py`.
     """
     if await db.get(Course, body.course_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")

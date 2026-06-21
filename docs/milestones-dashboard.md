@@ -23,13 +23,13 @@ watch-tracking). Shared seams are called out per milestone.
 | M3 Session detail | Phase 0/3 | ✅ done (PR #5) |
 | M4 Frontend polish & hardening | Phase 1/2 support | ✅ done (PR #7) |
 | M5 Assignments & grading | Phase 3 | ✅ done (PR #9) |
-| M6 Lecture notes + recording player (+ watch-tracking UI) | Phase 3 + compliance | 🟡 lecture notes ✅ (PR #17); recording player + watch-tracking deferred (needs Dev B M7 recordings) |
+| M6 Lecture notes + recording player (+ watch-tracking UI) | Phase 3 + compliance | ✅ lecture notes ✅ (PR #17); recording player + watch-tracking UI built jointly w/ Dev B M7 |
 | **AF Organizations & Memberships** (foundation) | identity | ✅ done — org/membership/invitation models + backfill migration (`User.role` kept as a synced mirror), additive `require_org_role`, role-write service, invite signup |
-| **AD Admin Dashboard** (members/roles, sessions, attendance, overview) | Phase 3/4/6 | 🟡 in progress — **Members & Roles ✅** + bootstrap admin ✅ + **Sessions ✅**; Attendance / Overview pending. **consolidates M7 + M9** |
+| **AD Admin Dashboard** (members/roles, sessions, enrollments, attendance, overview) | Phase 3/4/6 | 🟡 in progress — **Members & Roles ✅** + bootstrap admin ✅ + **Sessions ✅** + **Enrollments ✅**; Attendance / Overview pending. **consolidates M7 + M9** |
 | ~~M7 Analytics dashboards~~ | Phase 3/4 | → folded into **AD** (Attendance + Overview tabs) |
 | M8 Accounts: OAuth, profile, email | Phase 6 | (org/membership identity foundation moves under **AF**) |
 | ~~M9 Admin panel + responsive/dark/PWA~~ | Phase 6 | admin panel → **AD**; responsive/dark/PWA stay here |
-| MP Production hardening (shared) | Phase 5 | |
+| MP Production hardening (shared) | Phase 5 | 🟡 partial — backend serves the built SPA same-origin with COOP/COEP; Sentry/Vercel-CI/Lighthouse pending |
 
 ---
 
@@ -52,48 +52,48 @@ watch-tracking). Shared seams are called out per milestone.
 
 ## M2 — Dashboard page · _Phase 0/3_
 
-- [ ] Backend: `GET /api/sessions?status=`, `/api/sessions/this-week`, `/api/courses`, `/api/dashboard/widgets`
-- [ ] `TimetableSection` + `DateTabStrip` + `ClassCard`
-- [ ] `ContinueWatchingSection` + `VideoCard` (watch-progress bar)
-- [ ] `DashboardSidebar`: `PerformanceWidget`, `NoticeBoardWidget`, `YearRevisitedBanner`
-- [ ] `useDashboard` hooks; loading skeletons; empty states
+- [x] Backend: `GET /api/sessions?status=` (`upcoming`/`past`), `/api/sessions/this-week`, `/api/courses`, `/api/dashboard/stats` (Performance widget) (`sessions.py`, `courses.py`, `dashboard.py`)
+- [x] `TimetableSection` + `DateTabStrip` + `ClassCard` (`components/dashboard/`)
+- [ ] `ContinueWatchingSection` + `VideoCard` — section + card built (`VideoCard.tsx` links to the recording player), but the card shows a "Resume" label, **no watch-progress bar** yet
+- [x] `DashboardSidebar`: `PerformanceWidget`, NoticeBoardWidget (empty-state), revisited banner (`DashboardSidebar.tsx`)
+- [x] `useDashboard` hooks; loading skeletons (`Skeleton`); empty states ("Nothing to catch up on yet…")
 
 **DoD:** dashboard renders seeded data end-to-end; skeletons on every fetch; empty states; pytest covers new endpoints.
 
 ## M3 — Session detail page · _Phase 0/3_
 
-- [ ] Backend: `GET /api/sessions/:id/similar`
-- [ ] `SessionDetailPage` (`/session/:id`) + breadcrumb
-- [ ] `UpcomingSessionHero` ("Join Session" → `/live/:id`) · **seam:** route owned by Dev B
-- [ ] `SessionTabBar` (Feedback locked until ENDED), `SimilarSessionsRow`
+- [x] Backend: `GET /api/sessions/:id/similar` (`sessions.py:137`)
+- [x] `SessionDetailPage` (`/session/:sessionId`) + "Back to dashboard" breadcrumb (`SessionDetailPage.tsx`)
+- [x] `UpcomingSessionHero` ("Join" → `/live/:id`) · **seam:** route owned by Dev B (`UpcomingSessionHero.tsx:50`)
+- [x] `SessionTabBar` (Feedback locked until ENDED), `SimilarSessionsRow` (`SessionTabBar.tsx:23`, `SimilarSessionsRow.tsx`)
 
 **DoD:** dashboard → session detail → Join routes to the live URL; tabs gate by status; tests for `/similar`.
 
 ## M4 — Frontend polish & hardening · _Phase 1/2 support_
 
-- [ ] Error boundaries per page; full skeleton/empty coverage
-- [ ] API client: 401 handling + session refresh; toast system (shared with Dev B)
-- [ ] Accessibility pass (focus, labels, keyboard nav on drawer/dropdown)
-- [ ] Route-level code splitting; Lighthouse pass on dashboard
+- [x] Error boundaries (`components/ErrorBoundary.tsx`, mounted in `main.tsx`); skeleton/empty coverage (M2)
+- [ ] API client: **401 handling done** — `queryClient.ts` clears auth on a 401 (`onError`); toast system shipped (`stores/toastStore.ts` + `ui/Toaster.tsx`, shared w/ Dev B). **No session refresh** yet → box left open.
+- [x] Accessibility pass — drawer + dropdown have `aria-*`/`role`, focus + `Escape` handling (`SideDrawer.tsx`, `ui/dropdown-menu.tsx`)
+- [ ] Route-level code splitting **done** (`React.lazy` per route in `router.tsx`); Lighthouse pass on dashboard not evidenced → box left open
 
 **DoD:** clean CI; no console errors; desktop layout matches design ref.
 
 ## M5 — Assignments & grading · _Phase 3_
 
-- [ ] Models + migration: `Assignment`, `Submission` (+ status, grade) · **seam:** Dev B emits `assignment:unlocked`
-- [ ] `POST/GET/PATCH /api/assignments` (CRUD, instructor-gated via `require_role`)
-- [ ] Submission upload → object storage (R2/S3) with presigned URLs
-- [ ] Student view: list / submit / view grade; Instructor view: grading interface
-- [ ] pytest: authz, submission lifecycle, grade write
+- [x] Models + migration: `Assignment`, `Submission` (+ status, grade) (`models/assignment.py`, migration `64f290eb783a_assignments_submissions.py`)
+- [x] `POST/GET/PATCH /api/assignments` (CRUD, instructor/admin-gated) (`api/assignments.py`)
+- [ ] Submission upload → object storage (R2/S3) presigned URLs — **not implemented**; submissions are text `content: str` (`schemas/assignment.py`), no storage/presign
+- [x] Student view: submit / view grade; Instructor view: grading interface (`GradeRow`) (`components/session/AssignmentTab.tsx`, `hooks/useAssignments.ts`)
+- [x] pytest: authz, submission lifecycle, grade write (`tests/test_assignments.py`)
 
 **DoD:** assign → submit → grade → view loop works; uploads stored in R2; instructor-only gates enforced.
 
 ## M6 — Lecture notes + recording player + watch-tracking UI · _Phase 3 + compliance_
 
-- [ ] `LectureNote` model; upload (PDF/DOCX → R2) + signed download URL
-- [ ] Recording player page; **bookmarks render as clickable timestamps** (reads Dev B's `Bookmark`)
-- [ ] Watch-tracking client: report played spans → `POST /api/recordings/:id/heartbeat` · **seam:** union/coverage computed by Dev B's backend (`intervals`)
-- [ ] Surface watch % + attendance % on dashboard/session (consumes compliance read-models)
+- [ ] `LectureNote` model ✅ + post/list routes (`models/lecture_note.py`, `api/notes.py`); but materials are stored as an external `url` — **no R2 upload + signed download URL** yet → box left open
+- [ ] Recording player page ✅ (`pages/RecordingPlayerPage.tsx`, route `/session/:sessionId/recording`); **bookmarks-as-clickable-timestamps NOT present** in the player → box left open
+- [x] Watch-tracking client: reports actually-played spans → `POST /api/sessions/:id/recording/heartbeat` (`hooks/useRecording.ts`, `api/recordings.py:101`) · **seam:** union/coverage via Dev B's `intervals`/`watch.py`
+- [ ] Surface watch % + attendance % on dashboard/session — backend read-model exists (`recording/watch-status`, `recordings.py:144`) but **not yet surfaced** in `VideoCard`/`SessionDetailPage`/`useDashboard` → box left open
 
 **DoD:** play recording, seek, jump to a bookmark; watch % reflects the **union of real played spans** (seek-to-end ≠ 100%); notes download via signed URL.
 
@@ -111,13 +111,14 @@ Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpow
 
 Design: [`docs/superpowers/specs/2026-06-20-admin-dashboard-design.md`](superpowers/specs/2026-06-20-admin-dashboard-design.md) (Part B). `/admin`, ADMIN-only, built on **AF**. Phased: Members → Sessions → Attendance → Overview.
 
-**Status: phase 2 of 4 shipped** — Members & Roles, no-shell bootstrap admin, and the Sessions tab are implemented and locally verified (156 backend tests + frontend build green; live-smoke'd against the dev DB); pending commit/PR/deploy. Attendance and Overview tabs are next.
+**Status: phase 3 of 4 shipped** — Members & Roles, no-shell bootstrap admin, the Sessions tab, and the Enrollments tab are implemented; pending commit/PR/deploy. Attendance and Overview tabs are next (no routes for them in `admin.py` yet).
 
 - [x] **Members & Roles** tab — list members, promote/demote (last-admin guard), invite-by-link, revoke + invite-aware signup · `/api/admin/*` + `/admin` UI (12 backend tests)
 - [x] **No-shell bootstrap admin** — `BOOTSTRAP_ADMIN_EMAILS` (default `abhinav.singh@scaler.com`) auto-grants ADMIN on login/signup, so the first admin exists on the deployed instance without Shell access (4 tests)
-- [x] **Sessions** tab — list (all, status-filtered) / create (`POST /api/sessions`, new) / edit (PATCH) / cancel · `/api/admin/sessions*` + `/api/admin/courses` + tabbed `/admin` UI (9 backend tests). Manual `zoomMeetingId`; **real Zoom auto-create = documented fast-follow**
-- [ ] **Attendance** tab — per-session + per-student from `attendance_final` (empty until real Zoom creds feed M6 reconcile)
-- [ ] **Overview** tab — counts, recent activity, engagement snapshot (leaderboard / quiz-poll participation)
+- [x] **Sessions** tab — list (all, status-filtered) / create (`POST /api/sessions`) / edit (PATCH) / cancel · `/api/admin/sessions*` + `/api/admin/courses` + tabbed `/admin` UI. Host picker lists **all members** (`useMembers`) — any member (incl. a student) can be assigned host; only the host is the Zoom host (`is_zoom_host = host_id`). Real Zoom meeting is **auto-created via S2S** when the host first clicks "Join video" (`zoom_meetings.py`); the `zoomMeetingId` field is an optional manual override.
+- [x] **Enrollments** tab — list / create / remove enrollments (`EnrollmentsTab.tsx` + `GET/POST/DELETE /api/admin/enrollments`, course/instructor pickers via `/api/admin/courses` + `/api/admin/instructors`)
+- [ ] **Attendance** tab — per-session + per-student from `attendance_final` (no attendance route in `admin.py`; empty until real Zoom creds feed M6 reconcile)
+- [ ] **Overview** tab — counts, recent activity, engagement snapshot (no overview route in `admin.py`)
 
 **DoD:** an org admin manages roles, schedules sessions, and views attendance + an overview; all `require_org_role(ADMIN)`-gated; empty states where data is unfed.
 
@@ -147,7 +148,8 @@ Superseded by AD (Attendance + Overview tabs). Remaining student-facing pieces:
 
 ## MP — Production hardening (shared with Dev B) · _Phase 5_
 
-Dev A slice:
+Dev A slice (🟡 partial):
+- [x] Backend serves the built SPA same-origin on Render with COOP/COEP from the backend `cross_origin_isolation` middleware (`backend/app/main.py` — `StaticFiles` mount + SPA fallback)
 - [ ] Sentry (frontend); CSP headers; OWASP checklist for LMS routes
 - [ ] GitHub Actions production deploy (frontend → Vercel) with manual approval gate
 - [ ] Lighthouse/perf budget in CI

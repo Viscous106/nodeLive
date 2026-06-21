@@ -26,11 +26,12 @@ UI, admin. Shared seams are called out per milestone.
 | M3 Live feature APIs | Phase 1/2 | ✅ merged to `main` (PR #13) |
 | M4 Frontend live page | Phase 1/2 | ✅ merged to `main` (PR #13) |
 | M5 Live AI chat + polish | Phase 4 (live) | ✅ merged to `main` (PR #14) |
-| M6 Webhooks + attendance reconcile | compliance (Phase 3/5) | 🟡 in PR #15 (this PR) |
-| M7 Recording ingest + watch-tracking | compliance (Phase 3) | |
-| M8 Post-meeting AI pipeline | Phase 4 | |
-| M9 AI recommendations + engagement analytics | Phase 4 | |
-| MP Production hardening (shared) | Phase 5 | |
+| M6 Webhooks + attendance reconcile | compliance (Phase 3/5) | ✅ merged to `main` |
+| M7 Recording ingest + watch-tracking | compliance (Phase 3) | ✅ merged to `main` |
+| M+ Live Zoom meetings (S2S auto-create + host ZAK) | Phase 1 follow-up | ✅ merged to `main` |
+| M8 Post-meeting AI pipeline | Phase 4 | ⬜ not started |
+| M9 AI recommendations + engagement analytics | Phase 4 | ⬜ not started |
+| MP Production hardening (shared) | Phase 5 | 🟡 partial (deploy + realtime/CORS + mem + seed) |
 
 ---
 
@@ -115,14 +116,35 @@ _Notes for the PR:_ `recording.completed` is **not** handled here (recording ing
 
 ## M7 — Recording ingest + watch-tracking · _compliance (Phase 3)_
 
-- [ ] Recording download (append webhook `download_token` / S2S OAuth) → object storage (R2/S3); Celery ingest job (idempotent)
-- [ ] `POST /api/recordings/:id/heartbeat` — accept played spans · **seam:** UI/player owned by Dev A (M6)
-- [ ] Watch coverage = **union of watched spans** via `intervals.py`; expose read-model (watch %) for the dashboard
-- [ ] CloudFront/CDN signed URLs (return 501 when not configured — by design)
+- [x] Recording download (append webhook `download_token` / S2S OAuth) → object storage (R2/S3); Celery ingest job (idempotent) — `recording_tasks.py` + `recording_storage.py` (boto3, R2-ready)
+- [x] `POST /api/sessions/:id/recording/heartbeat` — accept played spans (session-scoped)
+- [x] Watch coverage = **union of watched spans** via `intervals.py` (`utils/watch.py`); read-model `…/recording/watch-status` for the dashboard
+- [x] Presigned R2/S3 GET URLs (return 501 when not configured — by design); also serves external/public recording URLs
+- [x] Frontend `RecordingPlayerPage` + `useRecording` (records actually-played spans; seek-to-end ≠ 100%); opt-in storage integration test
 
-**DoD:** recording lands in storage; seeking to the end yields partial (not 100%) watch credit; watch % read-model consumed by Dev A's dashboard.
+**DoD:** ✅ recording pipeline lands a file in R2 (boto3, seam-tested live against MinIO + a real upload); seeking to the end yields partial (not 100%) watch credit (unit + API + live-verified); watch-% read-model consumed by the dashboard's "Continue Watching". Runbook: `docs/runbooks/m7-recording-r2.md`. Live demo recording seeded so the player is click-through without R2.
+
+## M+ — Live Zoom meetings (S2S auto-create + host ZAK) · _Phase 1 follow-up_ ✅
+
+The "auto-create a real Zoom meeting" fast-follow noted in M1's `/join`. Makes
+the live page actually host video end-to-end.
+
+- [x] S2S OAuth meeting create/fetch + host ZAK (`utils/zoom_meetings.py`); `/join` returns `signature + sdkKey + zoomMeetingId + password + zak`
+- [x] Host's "Join video" **auto-creates a real Zoom meeting** (replaces the placeholder id), starts it via ZAK; everyone else joins as a **named participant** (only `host_id` is the Zoom host — no duplicate-identity bug)
+- [x] Scheduling can assign **any member** (admin/instructor/student) as host; host-start **flips the session to LIVE**
+- [x] Students see **"Waiting for the host…"** then **auto-enter** when the class goes live (status poll)
+- [x] Graceful fallback: no S2S creds → legacy signature; missing meeting → friendly 409
+
+**DoD:** ✅ verified live on the deployment — host starts a real Zoom meeting from
+inside the app, a student auto-joins as a named participant. Setup (`ZOOM_S2S_*`,
+`ZOOM_HOST_EMAIL`, scopes) documented in `render.yaml` / `.env.example`.
 
 ## M8 — Post-meeting AI pipeline · _Phase 4_
+
+> **LLM provider:** Anthropic primary, **Groq fallback** (OpenAI-compatible) when
+> `ANTHROPIC_API_KEY` is unset/failing — the deploy has no Anthropic key today, so
+> Groq is the intended active provider once `GROQ_API_KEY` is set. All AI features
+> (M5 chat, M8, M9) share one provider wrapper. See `plan.md` §7.4a. Wiring pending.
 
 - [ ] Celery chain after `meeting.ended`: transcript fetch → AI summary → lecture notes → auto-quiz draft
 - [ ] `ai_meeting_summaries` table; "summary ready" event · **seam:** triggers Dev A's email + summary page
@@ -141,12 +163,16 @@ _Notes for the PR:_ `recording.completed` is **not** handled here (recording ing
 ## MP — Production hardening (shared with Dev A) · _Phase 5_
 
 Dev B slice:
-- [ ] Sentry (backend); nginx WebSocket proxy + COOP/COEP + rate limiting
+- [x] **Live deploy on Render** (Docker: migrate → seed → Celery worker → uvicorn `socket_app`), auto-deploy from `main`, healthcheck, clean port-scan
+- [x] COOP/COEP in the bundled deploy; **socket.io prod-origin CORS** fix (`RENDER_EXTERNAL_URL`); R2 CORS/Range documented for playback
+- [x] Memory mitigation for the free tier (single-process Celery `solo` pool + `RUN_WORKER` kill switch); idempotent seed (email-keyed) + enrollment backfill
+- [ ] Sentry (backend); nginx WebSocket proxy + rate limiting
 - [ ] k6 load test: 500 concurrent students, 20 classes, Zoom SDK stress
 - [ ] Prometheus metrics for socket/Celery; prompt-injection security tests
-- [ ] GitHub Actions production deploy (backend → Railway/Render) with approval gate
+- [ ] GitHub Actions production deploy with approval gate
+- [ ] **Paid tier** (Render Starter 2GB + dedicated worker) for real load — free tier OOMs past ~15 concurrent
 
-**DoD (shared):** production deploy passes the 500-student load test; runbook covers deploy/rollback/restore/incident. See Dev A's MP for the frontend half.
+**DoD (shared):** production deploy passes the 500-student load test; runbook covers deploy/rollback/restore/incident. _Status:_ deployed + functional on the free tier; load-scale + observability pending. See Dev A's MP for the frontend half.
 
 ---
 

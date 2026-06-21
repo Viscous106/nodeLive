@@ -7,6 +7,11 @@
 **Stack:** React 19 + TSX (frontend) | Python 3.12 + FastAPI + python-socketio (backend)  
 **This is the core differentiator — what makes linkHQ unique vs Scaler**
 
+**Status:** ✅ **Implemented.** Milestones M1–M7 plus the live-Zoom follow-up (S2S
+meeting create + host ZAK start) are built and tested — see the verified checklist
+at the end. Still pending: M8 post-meeting AI pipeline, M9 recommendations/engagement
+analytics, and full MP hardening (Sentry, k6, Prometheus, GH Actions).
+
 ---
 
 ## Scope
@@ -20,7 +25,7 @@ Build the live meeting experience: Zoom Meeting SDK embedded in a production-gra
 1. Cue Cards (instructor → all students)
 2. Quiz Engine (server-side timer, server-side scoring)
 3. Polls (live result streaming)
-4. AI Chat (Claude, streaming responses, within class context)
+4. AI Chat (Claude, streaming responses, within class context — + Groq fallback per plan.md §7.4a)
 5. Live Bookmarks (timestamp markers)
 6. Leaderboard (real-time, updates on quiz/poll)
 7. Notice Board (instant push to all students)
@@ -708,50 +713,53 @@ const ZoomMtgEmbedded = ((ZoomSDK as any).default ?? ZoomSDK) as typeof import('
 ## Checklist
 
 ### Backend
-- [ ] Zoom JWT signature generator (zoom_jwt.py) — test with actual SDK key
-- [ ] `POST /api/sessions/:id/join` — returns signature + sdkKey
-- [ ] `GET /api/sessions/:id/live/state` — full state snapshot
-- [ ] Live class SQLAlchemy models (CueCard, Poll, Quiz, Bookmark, Notice, PinnedMessage, LeaderboardPoint)
-- [ ] Alembic migration 002
-- [ ] python-socketio ASGI server mounted in main.py
-- [ ] Socket connect handler with JWT validation
-- [ ] join_session event → room join
-- [ ] caption_received event → Redis buffer
-- [ ] Cue card CRUD routes + cuecard:shown emit
-- [ ] Poll create/respond/close routes + socket events
-- [ ] Quiz create + launch route + Celery timer task
-- [ ] Quiz respond route with scoring algorithm
-- [ ] Notice create route + notice:pushed emit
-- [ ] Pinned message PUT/DELETE + socket events
-- [ ] Raise hand socket events (no DB — ephemeral)
-- [ ] Bookmark create + list routes
-- [ ] Assignment unlock route + assignment:unlocked emit
-- [ ] Leaderboard update on quiz/poll response
-- [ ] AI chat route (streaming Claude + socket chunks)
-- [ ] Zoom webhook handler (ported from testing/routes/webhooks.js)
-- [ ] intervals.py port from intervals.js (with pytest tests)
-- [ ] pytest tests for: zoom_jwt, quiz scoring, poll results calculation
+- [x] Zoom JWT signature generator (zoom_jwt.py) — test with actual SDK key
+- [x] `POST /api/sessions/:id/join` — returns signature + sdkKey (+ zoomMeetingId, password, zak)
+- [x] `GET /api/sessions/:id/live/state` — full state snapshot
+- [x] Live class SQLAlchemy models (CueCard, Poll, Quiz, Bookmark, Notice, PinnedMessage, LeaderboardPoint)
+- [x] Alembic migration (`3a0dd075c00f_live_meeting_tables.py`)
+- [x] python-socketio ASGI server mounted in main.py
+- [x] Socket connect handler with JWT validation
+- [x] join_session event → room join
+- [x] caption_received event → Redis buffer
+- [x] Cue card CRUD routes + cuecard:shown emit
+- [x] Poll create/respond/close routes + socket events
+- [x] Quiz create + launch route + Celery timer task
+- [x] Quiz respond route with scoring algorithm
+- [x] Notice create route + notice:pushed emit
+- [x] Pinned message PUT/DELETE + socket events
+- [x] Raise hand socket events (no DB — ephemeral)
+- [x] Bookmark create + list routes
+- [x] Assignment unlock route + assignment:unlocked emit
+- [x] Leaderboard update on quiz/poll response
+- [x] AI chat route (streaming Claude + socket chunks) — Groq fallback per plan.md §7.4a
+- [x] Zoom webhook handler (ported from testing/routes/webhooks.js)
+- [x] intervals.py port from intervals.js (with pytest tests)
+- [x] pytest tests for: zoom_jwt, quiz scoring, poll results calculation
+- [x] **M7 recordings:** `app/api/recordings.py`, `app/utils/recording_storage.py`, `app/workers/recording_tasks.py`, `app/utils/watch.py`, `app/schemas/recording.py`, migration `rec0watch7m7a_*` + `recording.completed` webhook branch
+- [x] **M+ live Zoom:** `app/utils/zoom_meetings.py` (S2S create-meeting + host ZAK); host-start flips session LIVE
 
 ### Frontend
-- [ ] LiveMeetingPage.tsx with split-pane layout
-- [ ] LiveMeetingTopBar (dark, LIVE indicator, attendee count, leave button)
-- [ ] ZoomPanel.tsx — SDK init in useRef, join on mount
-- [ ] useZoomSDK.ts hook (all SDK logic, caption event forwarding)
-- [ ] FeaturePanel.tsx with tab bar (icon tabs on right edge)
-- [ ] ChatPanel with pinned message banner + AI integration
-- [ ] QuizPanel (student countdown + instructor creator)
-- [ ] PollPanel (student vote + live bar chart + instructor creator)
-- [ ] LeaderboardPanel (top 10, highlight current user)
-- [ ] BookmarkPanel (list + add button)
-- [ ] NotesPanel (list + instructor upload)
-- [ ] CueCardOverlay (slide-in, 30s auto-dismiss)
-- [ ] NoticeOverlay (full-screen CRITICAL + banner NORMAL)
-- [ ] RaiseHandQueue (instructor panel inside ChatPanel)
-- [ ] useSocket.ts (singleton, reconnect)
-- [ ] useSocketEvents.ts (all event → store bindings)
-- [ ] useLiveState.ts (hydrate on join/reconnect)
-- [ ] liveClassStore.ts (Zustand)
-- [ ] useAiStream.ts (socket-driven streaming display)
-- [ ] COOP/COEP headers in vite.config.ts
-- [ ] Leave meeting dialog confirmation
-- [ ] Toast notifications (assignment unlock, quiz score, new notice)
+- [x] LiveMeetingPage.tsx with split-pane layout
+- [x] LiveMeetingTopBar (dark, LIVE indicator, attendee count, leave button)
+- [x] ZoomPanel.tsx — SDK init in useRef, join on mount
+- [x] useZoomSDK.ts hook (all SDK logic, caption event forwarding)
+- [x] FeaturePanel.tsx with tab bar (icon tabs on right edge)
+- [x] ChatPanel with pinned message banner + AI integration
+- [x] QuizPanel (student countdown + instructor creator)
+- [x] PollPanel (student vote + live bar chart + instructor creator)
+- [x] LeaderboardPanel (top 10, highlight current user)
+- [x] BookmarkPanel (list + add button)
+- [x] NotesPanel (list + instructor upload)
+- [x] CueCardOverlay (slide-in, 30s auto-dismiss)
+- [x] NoticeOverlay (full-screen CRITICAL + banner NORMAL)
+- [x] RaiseHandQueue (instructor panel inside ChatPanel)
+- [x] useSocket.ts (singleton, reconnect)
+- [x] useSocketEvents.ts (all event → store bindings)
+- [x] useLiveState.ts (hydrate on join/reconnect)
+- [x] liveClassStore.ts (Zustand)
+- [x] useAiStream.ts (socket-driven streaming display)
+- [x] COOP/COEP headers in vite.config.ts
+- [x] Leave meeting dialog confirmation
+- [x] Toast notifications (assignment unlock, quiz score, new notice)
+- [x] **M7:** RecordingPlayerPage.tsx + useRecording.ts (watch-tracking player)

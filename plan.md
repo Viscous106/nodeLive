@@ -187,7 +187,8 @@ FastAPI's dependency injection system makes auth middleware clean and testable. 
 | Password Hashing | passlib[argon2] | 1.x | Argon2id — OWASP recommended |
 | File Upload | python-multipart | — | Built into FastAPI for multipart/form-data |
 | AWS SDK | boto3 | 1.x | S3 uploads, CloudFront signing |
-| AI | anthropic | latest | Claude claude-sonnet-4-6 (async client) |
+| AI (primary) | anthropic | latest | Claude claude-sonnet-4-6 (async client) |
+| AI (fallback) | groq (OpenAI-compatible) | latest | Used when `ANTHROPIC_API_KEY` is unset/failing — e.g. `llama-3.3-70b-versatile` via `GROQ_API_KEY`. See §7.4a. |
 | HTTP Client | httpx | 0.27.x | Async HTTP for Zoom REST API calls |
 | Zoom Auth | python-jose + httpx | — | S2S OAuth token cache + JWT generation |
 | Logging | structlog | 24.x | Structured JSON logging (like Pino) |
@@ -649,6 +650,32 @@ Answer the student's question concisely and accurately.
 If the question is unrelated to the lecture topic, gently redirect.
 Do not make up facts. If unsure, say so.
 ```
+
+---
+
+### 7.4a LLM Provider Fallback (Anthropic → Groq)
+
+All AI features — live AI chat (§7.4), post-meeting summary/notes/quiz (M8), and
+recommendations (M9) — go through one thin `chat()` wrapper that selects the
+provider at runtime:
+
+1. **Primary — Anthropic Claude** (`claude-sonnet-4-6`) when `ANTHROPIC_API_KEY` is set.
+2. **Fallback — Groq** (OpenAI-compatible) when the Anthropic key is **unset** or a
+   call **fails** (auth / rate-limit / network). Configured via `GROQ_API_KEY`
+   (+ optional `GROQ_MODEL`, default e.g. `llama-3.3-70b-versatile`); base URL
+   `https://api.groq.com/openai/v1` (use the `openai` SDK pointed at Groq, or the
+   `groq` SDK).
+3. **Neither set →** the feature degrades gracefully (route returns 501; the UI
+   shows AI as unavailable) — unchanged from today.
+
+Groq exposes an OpenAI-compatible chat/stream API, so the wrapper normalizes both
+providers to one message/stream interface; the system prompts, prompt-injection
+guard, and the Redis caption-context buffer are provider-agnostic and unchanged.
+
+**Status (now):** the deployed instance has **no `ANTHROPIC_API_KEY`**, so **Groq is
+the intended active provider** once `GROQ_API_KEY` is set. This is documented in the
+plan; the implementation is a small wrapper around the existing AI call sites
+(`backend/app/api/ai_chat.py` / live AI chat in `live.py`) and is **pending**.
 
 ---
 
@@ -1653,6 +1680,16 @@ hotfix/*     — direct PR to main + develop
 ---
 
 ## 17. Phased Roadmap
+
+> **Live status is tracked per-milestone in `docs/milestones-dashboard.md` and
+> `docs/milestones-live-meeting.md`** (kept in sync with the code) — this section
+> is the original phase plan. As of 2026-06-21: **Phases 0–3 substantially done**
+> (auth, dashboard, session detail, live meeting + 11 features, assignments,
+> notes, recordings/watch-tracking, attendance, admin members/sessions/enrollments,
+> **live Zoom via S2S + host ZAK**). **Phase 4 (AI)** not started — note the
+> **Anthropic→Groq fallback** in §7.4a. **Phase 5 (hardening)** partial — deployed
+> on Render, socket-CORS/COOP-COEP done; load-scale + observability + paid tier
+> pending. **Phase 6** not started.
 
 ### Phase 0 — Foundation (Week 1–2)
 

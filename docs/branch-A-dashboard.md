@@ -7,6 +7,17 @@
 **Stack:** React 19 + TSX (frontend) | Python 3.12 + FastAPI (backend)  
 **Design ref:** `lms-ui-research/analysis/` + `lms-ui-research/screenshots/provided/`
 
+> **Status (verified against code, 2026-06-21):** Core LMS dashboard shell is
+> **implemented end-to-end** — auth, layout/shell, dashboard page (timetable,
+> continue-watching, sidebar), session detail (similar sessions, tabs), and the
+> recording player + watch-tracking. Items confirmed in code are ticked below;
+> a few are partials and are noted inline. Two endpoint paths drifted from the
+> original plan: the combined dashboard endpoint shipped as
+> `GET /api/dashboard/stats` (not `/widgets`), and course **enroll** lives under
+> the admin API (`POST /api/admin/enrollments` + auto-enroll on course create),
+> not `POST /api/courses/:id/enroll`. Still pending: profile/settings page,
+> OAuth, email notifications, mobile/dark-mode/PWA, and MP hardening.
+
 ---
 
 ## Scope
@@ -443,34 +454,34 @@ display: flex; gap: 12px; align-items: flex-start;
 ## Checklist
 
 ### Backend
-- [ ] User model + migration
-- [ ] Course + ClassSession + Enrollment models + migration
-- [ ] Auth routes (signup, login, logout, /me)
-- [ ] JWT token creation + validation dependency
-- [ ] `/api/sessions` list + detail + this-week + similar
-- [ ] `/api/courses` list
-- [ ] `/api/dashboard/widgets` combined
-- [ ] Seed data script
-- [ ] pytest tests for auth routes
+- [x] User model + migration — `app/models/user.py`, migration `2c3e7d95e6bc_users_courses_class_sessions.py`
+- [x] Course + ClassSession + Enrollment models + migration — `app/models/course.py` (all three classes); enrollments migration `d94ea5abad38_enrollments.py`
+- [x] Auth routes (signup, login, logout, /me) — `app/api/auth.py` (Argon2id, JWT cookie)
+- [x] JWT token creation + validation dependency — `app/auth/tokens.py` (`create_access_token`/`decode_token`), `app/auth/deps.py` (`get_current_user` + role guards)
+- [x] `/api/sessions` list + detail + this-week + similar — `app/api/sessions.py` (all present, plus `POST` create + `PATCH`)
+- [x] `/api/courses` list — `app/api/courses.py` (read-only; **note:** `POST /api/courses/:id/enroll` was NOT built — enroll lives under the admin API instead)
+- [x] `/api/dashboard/widgets` combined — **shipped as `GET /api/dashboard/stats`** (`app/api/dashboard.py`), consumed by `useDashboard.ts`
+- [x] Seed data script — `backend/scripts/seed.py`
+- [x] pytest tests for auth routes — `backend/tests/test_auth.py` (plus `test_sessions.py`, `test_dashboard*.py`)
 
 ### Frontend
-- [ ] Google Fonts: Source Sans Pro in index.html
-- [ ] Tailwind config with all design tokens
-- [ ] shadcn/ui init + Button, Card, Badge, Skeleton, Dialog, Dropdown
-- [ ] LoginPage + SignupPage
-- [ ] Auth hook (Zustand + React Query)
-- [ ] React Router setup with auth guard
-- [ ] TopNav component
-- [ ] SideDrawer component (with animation)
-- [ ] DashboardLayout (main content + right sidebar slot)
-- [ ] DashboardPage with all sections
-- [ ] VideoCard component
-- [ ] ContinueWatchingSection (horizontal scroll)
-- [ ] TimetableSection + DateTabStrip + ClassCard
-- [ ] DashboardSidebar (PerformanceWidget + NoticeBoardWidget)
-- [ ] SessionDetailPage
-- [ ] UpcomingSessionHero (with "Join Session" → /live/:id nav)
-- [ ] SessionTabBar
-- [ ] SimilarSessionsRow
-- [ ] Loading skeletons on all data fetches
-- [ ] Empty states
+- [~] Google Fonts: Source Sans Pro in index.html — **font shipped as self-hosted Inter** (`@fontsource-variable/inter`, imported in `main.tsx`; see `styles/globals.css`), not Source Sans Pro via Google Fonts
+- [x] Tailwind config with all design tokens — design tokens in `frontend/src/styles/globals.css` (Tailwind 4 CSS-first config)
+- [x] shadcn/ui init + Button, Card, Badge, Skeleton, Dialog, Dropdown — `components/ui/` has `button`, `card`, `badge`, `skeleton`, `dropdown-menu`, `ConfirmDialog` (Dialog variant)
+- [x] LoginPage + SignupPage — `pages/LoginPage.tsx`, `pages/SignupPage.tsx` (shared `components/auth/AuthShell.tsx`)
+- [x] Auth hook (Zustand + React Query) — `hooks/useAuth.ts`
+- [x] React Router setup with auth guard — `router.tsx` + `components/auth/guards.tsx` (`ProtectedRoute`/`PublicOnlyRoute`/`AdminRoute`)
+- [x] TopNav component — `components/layout/TopNav.tsx`
+- [x] SideDrawer component (with animation) — `components/layout/SideDrawer.tsx`
+- [x] DashboardLayout (main content + right sidebar slot) — `components/layout/DashboardLayout.tsx`
+- [x] DashboardPage with all sections — `pages/DashboardPage.tsx`
+- [x] VideoCard component — `components/dashboard/VideoCard.tsx`
+- [x] ContinueWatchingSection (horizontal scroll) — `components/dashboard/ContinueWatchingSection.tsx`
+- [x] TimetableSection + DateTabStrip + ClassCard — `components/dashboard/{TimetableSection,DateTabStrip,ClassCard}.tsx`
+- [x] DashboardSidebar (PerformanceWidget + NoticeBoardWidget) — `components/dashboard/DashboardSidebar.tsx`
+- [x] SessionDetailPage — `pages/SessionDetailPage.tsx`
+- [x] UpcomingSessionHero (with "Join Session" → /live/:id nav) — `components/session/UpcomingSessionHero.tsx` (navigates to `/live/:id`; shows "Watch recording" when ended)
+- [x] SessionTabBar — `components/session/SessionTabBar.tsx` (tabs: Session | Assignment | Notes | Feedback, + Analytics)
+- [x] SimilarSessionsRow — `components/session/SimilarSessionsRow.tsx`
+- [x] Loading skeletons on all data fetches — Skeleton used in dashboard sections, SessionDetail, Sessions, Leaderboard pages
+- [x] Empty states — e.g. `TimetableSection.tsx` "No classes scheduled for this day."

@@ -82,8 +82,13 @@ class Settings(BaseSettings):
     RECORDING_URL_TTL_SECS: int = 300
 
     # --- AI ---
+    # Primary provider: Anthropic Claude. Fallback: Groq (OpenAI-compatible) when
+    # ANTHROPIC_API_KEY is unset or a call fails. If neither is set the AI routes
+    # degrade gracefully (501). See plan.md §7.4a. (Fallback wiring is pending.)
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     @field_validator("DATABASE_URL", "DIRECT_DATABASE_URL", mode="after")
     @classmethod
