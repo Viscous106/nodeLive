@@ -1,5 +1,5 @@
-import { FileText } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Download, FileText, Paperclip, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,12 +13,23 @@ import { useAuth } from '@/hooks/useAuth'
 import {
   useAssignments,
   useCreateAssignment,
+  useDownloadSubmission,
   useGrade,
   useMySubmission,
   useSubmissions,
   useSubmit,
+  useUploadUrl,
 } from '@/hooks/useAssignments'
+import { toast } from '@/stores/toastStore'
 import type { Assignment, ClassSession, Submission } from '@/types'
+
+// File submissions store their R2 object key (under this prefix) in `content`;
+// text/link submissions store the raw text. Keep this in sync with the backend.
+const FILE_PREFIX = 'submissions/'
+
+function fileNameOf(key: string): string {
+  return key.split('/').pop() ?? key
+}
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -47,13 +58,56 @@ function AssignmentHeader({ assignment }: { assignment: Assignment }) {
 function StudentAssignmentCard({ assignment }: { assignment: Assignment }) {
   const { data: submission } = useMySubmission(assignment.id)
   const submit = useSubmit(assignment.id)
+  const getUploadUrl = useUploadUrl(assignment.id)
+  const download = useDownloadSubmission()
   const [content, setContent] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const isFileSubmission = submission?.content.startsWith(FILE_PREFIX) ?? false
 
   useEffect(() => {
-    if (submission) setContent(submission.content)
+    // Don't echo the opaque R2 key into the textarea for file submissions.
+    if (submission && !submission.content.startsWith(FILE_PREFIX)) {
+      setContent(submission.content)
+    }
   }, [submission])
 
   const graded = submission?.status === 'GRADED'
+  const busy = submit.isPending || uploading
+
+  async function handleSubmit() {
+    if (file) {
+      setUploading(true)
+      try {
+        const { uploadUrl, fileKey } = await getUploadUrl.mutateAsync({
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+        })
+        const put = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        })
+        if (!put.ok) throw new Error(`upload failed: ${put.status}`)
+        submit.mutate(fileKey)
+        setFile(null)
+        if (fileRef.current) fileRef.current.value = ''
+      } catch {
+        // 501 (storage off) or a failed PUT — tell the user and let them fall
+        // back to a link/text submission instead of failing silently.
+        toast({
+          variant: 'error',
+          title: 'File upload failed — submit a link or text instead.',
+        })
+      } finally {
+        setUploading(false)
+      }
+    } else {
+      submit.mutate(content)
+    }
+  }
 
   return (
     <Card>
@@ -74,25 +128,75 @@ function StudentAssignmentCard({ assignment }: { assignment: Assignment }) {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor={`sub-${assignment.id}`}>
-            Your submission (link or text)
-          </Label>
-          <Textarea
-            id={`sub-${assignment.id}`}
-            rows={3}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="https://github.com/you/repo  ·  or type your answer"
+          <Label htmlFor={`sub-${assignment.id}`}>Your submission</Label>
+
+          {file ? (
+            <div className="flex items-center gap-2 rounded-btn border border-border bg-page px-3 py-2">
+              <Paperclip className="h-4 w-4 shrink-0 text-text-muted" />
+              <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
+                {file.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFile(null)
+                  if (fileRef.current) fileRef.current.value = ''
+                }}
+                className="text-text-muted hover:text-danger"
+                aria-label="Remove file"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <Textarea
+              id={`sub-${assignment.id}`}
+              rows={3}
+              value={isFileSubmission ? '' : content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="https://github.com/you/repo  ·  or type your answer"
+            />
+          )}
+
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) {
+                setFile(f)
+                setContent('')
+              }
+            }}
           />
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => submit.mutate(content)}
-              disabled={!content.trim() || submit.isPending}
-            >
-              {submit.isPending && <Spinner />}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={handleSubmit} disabled={busy || (!file && !content.trim())}>
+              {busy && <Spinner />}
               {submission ? 'Resubmit' : 'Submit'}
             </Button>
-            {submission?.status === 'SUBMITTED' && (
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+            >
+              <Paperclip className="h-4 w-4" />
+              Attach file
+            </Button>
+            {isFileSubmission && (
+              <Button
+                variant="ghost"
+                type="button"
+                disabled={download.isPending}
+                onClick={() => download.mutate(submission!.id)}
+              >
+                <Download className="h-4 w-4" />
+                {fileNameOf(submission!.content)}
+              </Button>
+            )}
+            {submission?.status === 'SUBMITTED' && !isFileSubmission && (
               <span className="text-xs text-text-muted">
                 Submitted — awaiting grade
               </span>
@@ -114,14 +218,36 @@ function GradeRow({
   assignmentId: string
 }) {
   const grade = useGrade(assignmentId)
+  const download = useDownloadSubmission()
   const [score, setScore] = useState(submission.grade?.toString() ?? '')
   const [feedback, setFeedback] = useState(submission.feedback ?? '')
 
   return (
     <div className="space-y-2 rounded-btn border border-border p-3">
-      <p className="break-words text-sm text-text-secondary">
-        {submission.content}
-      </p>
+      {submission.content.startsWith(FILE_PREFIX) ? (
+        <button
+          type="button"
+          disabled={download.isPending}
+          onClick={() => download.mutate(submission.id)}
+          className="flex items-center gap-1.5 text-sm text-primary underline hover:opacity-80 disabled:opacity-50"
+        >
+          {download.isPending ? <Spinner /> : <Download className="h-3.5 w-3.5 shrink-0" />}
+          {fileNameOf(submission.content)}
+        </button>
+      ) : submission.content.startsWith('http') ? (
+        <a
+          href={submission.content}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="break-all text-sm text-primary underline"
+        >
+          {submission.content}
+        </a>
+      ) : (
+        <p className="break-words text-sm text-text-secondary">
+          {submission.content}
+        </p>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <div className="w-24">
           <Label htmlFor={`g-${submission.id}`}>Score</Label>

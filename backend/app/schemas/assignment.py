@@ -43,3 +43,12 @@ class SubmissionOut(CamelModel):
     status: SubmissionStatus
     grade: int | None = None
     feedback: str | None = None
+
+
+class UploadUrlOut(CamelModel):
+    upload_url: str
+    file_key: str
+
+
+class FileUrlOut(CamelModel):
+    url: str

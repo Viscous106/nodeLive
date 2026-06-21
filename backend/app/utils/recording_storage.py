@@ -94,3 +94,19 @@ def presign_get(key: str, ttl_secs: int | None = None) -> str:
         Params={"Bucket": settings.R2_BUCKET, "Key": key},
         ExpiresIn=ttl_secs or settings.RECORDING_URL_TTL_SECS,
     )
+
+
+def presign_put(
+    key: str, content_type: str = "application/octet-stream", expires_in: int = 900
+) -> str:
+    """Presigned PUT URL for direct-to-R2 upload (default 15-min window)."""
+    client = _client()
+    return client.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": settings.R2_BUCKET,
+            "Key": key,
+            "ContentType": content_type,
+        },
+        ExpiresIn=expires_in,
+    )
