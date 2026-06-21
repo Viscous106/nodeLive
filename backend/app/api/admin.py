@@ -15,11 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_org_role
 from app.db.session import get_db
+from app.models.attendance import AttendanceFinal, Meeting
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.org import Invitation, InvitationStatus, Membership, Organization
 from app.models.user import User, UserRole
 from app.schemas.course import CourseCreate, CourseOut
 from app.schemas.org import (
+    AttendeeOut,
     EnrollmentCreate,
     EnrollmentOut,
     InvitationOut,
@@ -359,6 +361,77 @@ async def delete_enrollment(
     if enr is not None:
         await db.delete(enr)
         await db.commit()
+
+
+# --- attendance ---------------------------------------------------------------
+
+
+@router.get("/sessions/{session_id}/attendance", response_model=list[AttendeeOut])
+async def session_attendance(
+    session_id: str,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> list[AttendeeOut]:
+    cs = await db.get(ClassSession, session_id)
+    if cs is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+
+    # Fetch enrolled users for this session's course.
+    rows = (
+        (
+            await db.execute(
+                select(User)
+                .join(Enrollment, Enrollment.user_id == User.id)
+                .where(Enrollment.course_id == cs.course_id)
+                .order_by(User.display_name)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    # Find all Zoom meeting occurrences for this session's zoom_meeting_id.
+    # AttendanceFinal.user_id is the app user id (set via customerKey in join).
+    present: dict[str, int] = {}
+    if cs.zoom_meeting_id:
+        zoom_uuids = (
+            (
+                await db.execute(
+                    select(Meeting.zoom_uuid).where(
+                        Meeting.zoom_meeting_id == cs.zoom_meeting_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if zoom_uuids:
+            finals = (
+                (
+                    await db.execute(
+                        select(AttendanceFinal).where(
+                            AttendanceFinal.zoom_uuid.in_(zoom_uuids),
+                            AttendanceFinal.user_id.is_not(None),
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for af in finals:
+                uid = af.user_id
+                present[uid] = present.get(uid, 0) + af.present_seconds
+
+    return [
+        AttendeeOut(
+            user_id=u.id,
+            display_name=u.display_name,
+            email=u.email,
+            present_seconds=present.get(u.id, 0),
+            attended=u.id in present,
+        )
+        for u in rows
+    ]
 
 
 # --- public preview (signup screen) ------------------------------------------

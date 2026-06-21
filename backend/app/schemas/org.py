@@ -55,3 +55,11 @@ class EnrollmentOut(CamelModel):
 class EnrollmentCreate(CamelModel):
     user_id: str
     course_id: str
+
+
+class AttendeeOut(CamelModel):
+    user_id: str
+    display_name: str
+    email: str
+    present_seconds: int
+    attended: bool

@@ -235,3 +235,11 @@ export interface Enrollment {
   email: string
   courseTitle: string
 }
+
+export interface Attendee {
+  userId: string
+  displayName: string
+  email: string
+  presentSeconds: number
+  attended: boolean
+}
