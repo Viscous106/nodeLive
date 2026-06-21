@@ -192,3 +192,27 @@ async def test_student_join_409_before_host_starts(client, session, monkeypatch)
     await _login(client, "stu@example.com")
 
     assert (await client.post("/api/sessions/s1/join")).status_code == 409
+
+
+async def test_non_host_admin_joins_as_participant_not_duplicate_host(
+    client, session, monkeypatch
+):
+    # A DIFFERENT admin (not the session host) must join as a participant with
+    # role 0 and NO zak — otherwise every admin joins as the single Zoom host
+    # account and they all show up as the same duplicate user.
+    import app.api.live as live
+
+    async def fake_get(mid):
+        return {"id": mid, "password": "pw"}
+
+    monkeypatch.setattr(live.zoom_meetings, "is_configured", lambda: True)
+    monkeypatch.setattr(live.zoom_meetings, "get_meeting", fake_get)
+
+    host = await _user(session, "prof@example.com", "INSTRUCTOR")
+    await _session_row(session, host)  # host_id = prof
+    await _user(session, "other-admin@example.com", "ADMIN")  # NOT the host
+    await _login(client, "other-admin@example.com")
+
+    body = (await client.post("/api/sessions/s1/join")).json()
+    assert _payload(body["signature"])["role"] == 0  # participant, not host
+    assert body["zak"] == ""  # does NOT receive the host ZAK

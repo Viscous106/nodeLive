@@ -173,11 +173,14 @@ async def join(
     if cs is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
 
-    is_host = user.id == cs.host_id or user.role in (
-        UserRole.INSTRUCTOR,
-        UserRole.ADMIN,
-    )
-    if not is_host:
+    # Only the session's designated host STARTS the meeting (the ZAK is for a
+    # single Zoom account — granting it to every admin/instructor makes them all
+    # join AS that one account, so they show up as duplicate identical users).
+    # Everyone else — other admins/instructors and all students — joins as a
+    # participant with their own name.
+    is_zoom_host = user.id == cs.host_id
+    can_access = is_zoom_host or user.role in (UserRole.INSTRUCTOR, UserRole.ADMIN)
+    if not can_access:
         enrolled = await db.scalar(
             select(Enrollment).where(
                 Enrollment.user_id == user.id,
@@ -193,8 +196,8 @@ async def join(
     zak = ""
     if zoom_meetings.is_configured():
         # Real meetings: the host gets (or creates) one + a ZAK to START it;
-        # students join the same meeting once the host has started it.
-        if is_host:
+        # everyone else joins the same meeting once the host has started it.
+        if is_zoom_host:
             meeting = await zoom_meetings.ensure_meeting(cs.zoom_meeting_id, cs.title)
             if meeting["id"] != cs.zoom_meeting_id:
                 cs.zoom_meeting_id = meeting["id"]
@@ -216,7 +219,7 @@ async def join(
     elif not cs.zoom_meeting_id:
         raise HTTPException(status.HTTP_409_CONFLICT, "Session has no Zoom meeting yet")
 
-    role = 1 if is_host else 0
+    role = 1 if is_zoom_host else 0
     signature = generate_zoom_signature(
         settings.ZOOM_SDK_KEY,
         settings.ZOOM_SDK_SECRET,
