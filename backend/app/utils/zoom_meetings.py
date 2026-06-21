@@ -76,6 +76,29 @@ async def get_host_zak() -> str:
     return resp.json().get("token", "")
 
 
+def s2s_configured() -> bool:
+    """S2S OAuth alone (no ZOOM_HOST_EMAIL needed) — enough to read reports."""
+    return bool(
+        settings.ZOOM_S2S_ACCOUNT_ID
+        and settings.ZOOM_S2S_CLIENT_ID
+        and settings.ZOOM_S2S_CLIENT_SECRET
+    )
+
+
+async def get_past_instances(meeting_number: str) -> list[str]:
+    """UUIDs of every past occurrence of a meeting number (oldest→newest).
+
+    Lets attendance be reconciled straight from the Reports API even when the
+    `meeting.started` webhook never created a Meeting row (webhook spine down).
+    """
+    resp = await _get(f"/past_meetings/{meeting_number}/instances")
+    if resp.status_code == 404:
+        return []
+    resp.raise_for_status()
+    data = resp.json()
+    return [m["uuid"] for m in (data.get("meetings") or []) if m.get("uuid")]
+
+
 async def ensure_meeting(current_id: str | None, topic: str) -> dict:
     """Get the existing Zoom meeting if `current_id` is real, else create one.
 

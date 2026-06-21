@@ -6,9 +6,11 @@ an org from locking itself out. The invite preview is public so the signup
 screen can show "Joining {org} as {role}".
 """
 
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, nulls_last, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,12 +33,16 @@ from app.schemas.org import (
     OverviewOut,
     RoleUpdate,
     SessionStatusCounts,
+    SyncAttendanceOut,
     UpcomingSessionOut,
 )
 from app.schemas.session import ClassSessionOut
 from app.services.enrollment import enroll_all_users
 from app.services.roles import assign_role, count_org_admins
+from app.utils import zoom_meetings
 from app.workers import attendance_tasks
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 public_router = APIRouter(tags=["admin"])
@@ -470,6 +476,73 @@ async def session_attendance(
         )
         for u in rows
     ]
+
+
+@router.post(
+    "/sessions/{session_id}/sync-attendance", response_model=SyncAttendanceOut
+)
+async def sync_attendance(
+    session_id: str,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> SyncAttendanceOut:
+    """Pull attendance straight from the Zoom Reports API on demand.
+
+    Works WITHOUT the webhook spine: it resolves the meeting instance UUIDs via
+    `/past_meetings/{number}/instances`, upserts the Meeting rows the Attendance
+    tab joins on, and runs the reconcile synchronously. Returns a diagnostic so
+    the exact failure (Reports-API plan/scope, no report yet) is visible."""
+    cs = await db.get(ClassSession, session_id)
+    if cs is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    if not cs.zoom_meeting_id:
+        return SyncAttendanceOut(ok=False, error="This session has no Zoom meeting ID.")
+    if not zoom_meetings.s2s_configured():
+        return SyncAttendanceOut(
+            ok=False, error="Zoom Server-to-Server OAuth is not configured."
+        )
+
+    try:
+        # Known instances (from webhooks, if any) + every past occurrence Zoom
+        # knows about. dict.fromkeys preserves order and de-dupes.
+        known = list(
+            await db.scalars(
+                select(Meeting.zoom_uuid).where(
+                    Meeting.zoom_meeting_id == cs.zoom_meeting_id
+                )
+            )
+        )
+        instances = await zoom_meetings.get_past_instances(cs.zoom_meeting_id)
+        uuids = list(dict.fromkeys([*known, *instances]))
+        if not uuids:
+            return SyncAttendanceOut(
+                ok=False,
+                error="No past meeting instances found yet — Zoom may still be "
+                "finalizing the report (try again in a few minutes).",
+            )
+
+        # Ensure a Meeting row exists per instance so the Attendance tab resolves.
+        for u in uuids:
+            existing = await db.scalar(
+                select(Meeting).where(Meeting.zoom_uuid == u)
+            )
+            if existing is None:
+                db.add(Meeting(zoom_uuid=u, zoom_meeting_id=cs.zoom_meeting_id))
+        await db.commit()
+
+        total = 0
+        for u in uuids:
+            total += await attendance_tasks.run_reconcile(u)
+        return SyncAttendanceOut(ok=True, instances=len(uuids), attendees=total)
+    except httpx.HTTPStatusError as e:
+        detail = (e.response.text or "")[:200]
+        logger.exception("sync-attendance Zoom API error for session %s", session_id)
+        return SyncAttendanceOut(
+            ok=False, error=f"Zoom API {e.response.status_code}: {detail}"
+        )
+    except Exception as e:  # noqa: BLE001 - surface any failure to the admin
+        logger.exception("sync-attendance failed for session %s", session_id)
+        return SyncAttendanceOut(ok=False, error=str(e) or "Unknown error")
 
 
 # --- overview -----------------------------------------------------------------

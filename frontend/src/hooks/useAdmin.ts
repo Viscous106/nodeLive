@@ -261,6 +261,34 @@ export function useSessionAttendance(sessionId: string | null) {
   })
 }
 
+export interface SyncAttendanceResult {
+  ok: boolean
+  instances: number
+  attendees: number
+  error: string | null
+}
+
+export function useSyncAttendance() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<SyncAttendanceResult>(`/api/admin/sessions/${id}/sync-attendance`),
+    onSuccess: (res, id) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'attendance', id] })
+      if (res.ok) {
+        toast({
+          variant: 'success',
+          title: `Synced ${res.attendees} attendee(s) from ${res.instances} instance(s)`,
+        })
+      } else {
+        toast({ variant: 'error', title: res.error ?? 'Sync failed' })
+      }
+    },
+    onError: () =>
+      toast({ variant: 'error', title: 'Could not sync attendance.' }),
+  })
+}
+
 export function useAdminOverview() {
   return useQuery({
     queryKey: ['admin', 'overview'],

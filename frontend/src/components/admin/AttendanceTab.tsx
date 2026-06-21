@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
 
-import { CheckCircle, Clock, Users, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, RefreshCw, Users, XCircle } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useAdminSessions, useSessionAttendance } from '@/hooks/useAdmin'
+import {
+  useAdminSessions,
+  useSessionAttendance,
+  useSyncAttendance,
+} from '@/hooks/useAdmin'
 
 function formatTime(seconds: number): string {
   if (seconds === 0) return '—'
@@ -21,6 +26,7 @@ export function AttendanceTab() {
   const { data: sessions, isLoading: sessionsLoading } = useAdminSessions()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const { data: attendees, isLoading: attendeesLoading } = useSessionAttendance(selectedId)
+  const sync = useSyncAttendance()
 
   // Auto-select the first ENDED session on load
   useEffect(() => {
@@ -79,13 +85,32 @@ export function AttendanceTab() {
               <Users className="h-4 w-4" />
               Attendance
             </CardTitle>
-            {!attendeesLoading && attendees && (
-              <span className="text-sm text-text-muted">
-                {attended} / {total} attended
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {!attendeesLoading && attendees && (
+                <span className="text-sm text-text-muted">
+                  {attended} / {total} attended
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => selectedId && sync.mutate(selectedId)}
+                disabled={sync.isPending}
+                title="Pull attendance from the Zoom Reports API now"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${sync.isPending ? 'animate-spin' : ''}`}
+                />
+                {sync.isPending ? 'Syncing…' : 'Sync from Zoom'}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
+            {sync.data && !sync.data.ok && sync.data.error && (
+              <p className="mb-3 rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
+                {sync.data.error}
+              </p>
+            )}
             {attendeesLoading && (
               <div className="space-y-2">
                 {[0, 1, 2, 3].map((i) => (

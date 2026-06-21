@@ -13,6 +13,7 @@ the pure, fully-tested core. Ported from `testing/workers/reconcile.js`.
 """
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
@@ -25,6 +26,8 @@ from app.models.attendance import AttendanceFinal
 from app.utils.attendance import encode_meeting_uuid, reconcile_participants
 from app.utils.zoom_auth import get_zoom_access_token
 from app.workers.celery_app import celery_app
+
+logger = logging.getLogger(__name__)
 
 _API_BASE = "https://api.zoom.us/v2"
 
@@ -98,6 +101,12 @@ async def run_reconcile(
     )
     finals = reconcile_participants(participants)
     await write(uuid, finals)
+    logger.info(
+        "attendance reconcile %s: %d participants -> %d attendees",
+        uuid,
+        len(participants),
+        len(finals),
+    )
     return len(finals)
 
 

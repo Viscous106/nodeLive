@@ -89,3 +89,12 @@ class OverviewOut(CamelModel):
     total_enrollments: int
     sessions: SessionStatusCounts
     upcoming: list[UpcomingSessionOut]
+
+
+class SyncAttendanceOut(CamelModel):
+    """Diagnostic result of a manual attendance sync from the Zoom Reports API."""
+
+    ok: bool
+    instances: int = 0
+    attendees: int = 0
+    error: str | None = None
