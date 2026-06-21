@@ -1,4 +1,4 @@
-import { Calendar, House, Shield, Trophy, X } from 'lucide-react'
+import { BarChart2, Calendar, House, Shield, Trophy, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
@@ -17,6 +17,7 @@ const PRIMARY: NavItem[] = [{ to: '/dashboard', label: 'Home', icon: House }]
 
 const LEARN: NavItem[] = [
   { to: '/sessions', label: 'Sessions', icon: Calendar },
+  { to: '/progress', label: 'My Progress', icon: BarChart2 },
   { to: '/leaderboard', label: 'Leaderboard', icon: Trophy },
 ]
 

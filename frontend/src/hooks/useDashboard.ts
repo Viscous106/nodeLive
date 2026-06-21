@@ -52,3 +52,44 @@ export function useDashboardStats() {
     queryFn: () => api.get<DashboardStats>('/api/dashboard/stats'),
   })
 }
+
+export interface AssignmentProgressItem {
+  id: string
+  title: string
+  maxPoints: number
+  dueAt: string | null
+  status: 'SUBMITTED' | 'GRADED' | null
+  grade: number | null
+  feedback: string | null
+  submittedAt: string | null
+}
+
+export interface SessionProgressItem {
+  id: string
+  title: string
+  sessionStatus: string
+  scheduledAt: string
+  watchPercent: number | null
+}
+
+export interface CourseProgressItem {
+  id: string
+  title: string
+  assignments: AssignmentProgressItem[]
+  sessions: SessionProgressItem[]
+}
+
+export interface MyProgress {
+  courses: CourseProgressItem[]
+  assignmentsTotal: number
+  assignmentsSubmitted: number
+  assignmentsGraded: number
+  avgGrade: number | null
+}
+
+export function useMyProgress() {
+  return useQuery({
+    queryKey: ['me', 'progress'],
+    queryFn: () => api.get<MyProgress>('/api/me/progress'),
+  })
+}
