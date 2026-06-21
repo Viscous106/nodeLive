@@ -62,9 +62,24 @@ export default function LiveMeetingPage() {
   if (isLoading) return <PageLoader />
 
   if (session && session.status !== 'LIVE' && !isInstructor) {
+    const ended = session.status === 'ENDED' || session.status === 'CANCELLED'
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-[#1A1A2E] text-white">
-        <p className="text-lg font-semibold">This session isn’t live right now.</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#1A1A2E] text-white">
+        {!ended && (
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+        )}
+        <div className="text-center">
+          <p className="text-lg font-semibold">
+            {ended
+              ? 'This class has ended.'
+              : 'Waiting for the host to start the class…'}
+          </p>
+          {!ended && (
+            <p className="mt-1 text-sm text-white/60">
+              You’ll join automatically the moment the host starts.
+            </p>
+          )}
+        </div>
         <button
           onClick={() => navigate('/dashboard')}
           className="text-sm text-primary-light hover:underline"
