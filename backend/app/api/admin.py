@@ -484,12 +484,13 @@ async def sync_attendance(
     membership: Membership = Depends(_admin),
     db: AsyncSession = Depends(get_db),
 ) -> SyncAttendanceOut:
-    """Pull attendance straight from the Zoom Reports API on demand.
+    """Reconcile attendance on demand, paid-plan-independent.
 
-    Works WITHOUT the webhook spine: it resolves the meeting instance UUIDs via
-    `/past_meetings/{number}/instances`, upserts the Meeting rows the Attendance
-    tab joins on, and runs the reconcile synchronously. Returns a diagnostic so
-    the exact failure (Reports-API plan/scope, no report yet) is visible."""
+    Resolves the meeting instance UUIDs (webhook-recorded Meeting rows + Zoom's
+    `/past_meetings/{number}/instances`), then reconciles each: the Reports/
+    past_meetings API first, falling back to the webhook participant log when
+    those are paid-gated (free Zoom account). Returns a diagnostic so the exact
+    failure (paid-only API, missing scope, no report yet) is visible."""
     cs = await db.get(ClassSession, session_id)
     if cs is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
@@ -514,9 +515,8 @@ async def sync_attendance(
                 )
             )
         )
-        # Listing past instances is best-effort: if its scope is missing but a
-        # webhook already recorded a Meeting row, reconcile that instead of
-        # failing outright.
+        # Listing past instances is best-effort: it's a paid-only API. If it's
+        # rejected but a webhook already recorded a Meeting row, reconcile that.
         instances_err: str | None = None
         try:
             instances = await zoom_meetings.get_past_instances(cs.zoom_meeting_id)
@@ -529,9 +529,11 @@ async def sync_attendance(
         if not uuids:
             return SyncAttendanceOut(
                 ok=False,
-                error=instances_err
-                or "No past meeting instances found yet — Zoom may still be "
-                "finalizing the report (try again in a few minutes).",
+                error=(instances_err or "")
+                + " — no webhook attendance recorded for this meeting either. On a "
+                "free Zoom plan, configure webhooks (Event Subscriptions) and run "
+                "the meeting so participant join/leave is captured, or upgrade the "
+                "Zoom account to Pro.",
             )
 
         # Ensure a Meeting row exists per instance so the Attendance tab resolves.
@@ -542,8 +544,26 @@ async def sync_attendance(
         await db.commit()
 
         total = 0
+        used_log = False
         for u in uuids:
-            total += await attendance_tasks.run_reconcile(u)
+            try:
+                total += await attendance_tasks.run_reconcile(u)
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code in (400, 401, 403):
+                    total += await attendance_tasks.reconcile_from_webhook_log(db, u)
+                    used_log = True
+                else:
+                    raise
+
+        if used_log and total == 0:
+            return SyncAttendanceOut(
+                ok=False,
+                instances=len(uuids),
+                attendees=0,
+                error="Zoom's participant-report API is paid-only and no webhook "
+                "attendance was recorded for this meeting. Configure webhooks and "
+                "run a meeting, or upgrade the Zoom account to Pro.",
+            )
         return SyncAttendanceOut(ok=True, instances=len(uuids), attendees=total)
     except httpx.HTTPStatusError as e:
         detail = (e.response.text or "")[:200]

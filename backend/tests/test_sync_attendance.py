@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import select
 
 from app.auth.security import hash_password
-from app.models.attendance import Meeting
+from app.models.attendance import AttendanceFinal, AttendanceSession, Meeting
 from app.models.course import ClassSession, Course
 from app.models.user import User, UserRole
 from app.services.roles import assign_role
@@ -141,7 +141,7 @@ async def test_sync_no_instances(client, session, monkeypatch, _stub_zoom):
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is False
-    assert "instances" in body["error"].lower()
+    assert "webhook" in body["error"].lower()
 
 
 @pytest.mark.asyncio
@@ -180,6 +180,84 @@ async def test_sync_requires_admin(client, session):
     await _login(client, "inst@x.com")
     r = await client.post(f"/api/admin/sessions/{cs.id}/sync-attendance")
     assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_sync_falls_back_to_webhook_log(client, session, monkeypatch, _stub_zoom):
+    """Paid-only Reports API → fall back to the webhook participant log."""
+    monkeypatch.setattr(
+        zoom_meetings, "get_past_instances", lambda n: _async_return([])
+    )
+
+    async def paid_error(_u):
+        req = httpx.Request("GET", "https://api.zoom.us")
+        resp = httpx.Response(400, text="Only available for Paid account", request=req)
+        raise httpx.HTTPStatusError("paid", request=req, response=resp)
+
+    monkeypatch.setattr(attendance_tasks, "run_reconcile", paid_error)
+
+    admin = await _user(session, "admin@x.com", UserRole.ADMIN)
+    course = await _course(session)
+    cs = await _session(session, course, admin)
+    session.add(Meeting(zoom_uuid="uuid-W", zoom_meeting_id="83824294541"))
+    session.add(
+        AttendanceSession(
+            zoom_uuid="uuid-W",
+            zoom_participant_uuid="p1",
+            user_id=admin.id,
+            email="admin@x.com",
+            display_name="admin",
+            joined_at=datetime(2026, 6, 21, 10, 0, tzinfo=UTC),
+            left_at=datetime(2026, 6, 21, 10, 30, tzinfo=UTC),
+        )
+    )
+    await session.commit()
+    await _login(client, "admin@x.com")
+
+    r = await client.post(f"/api/admin/sessions/{cs.id}/sync-attendance")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ok"] is True
+    assert body["attendees"] == 1
+    af = await session.scalar(
+        select(AttendanceFinal).where(AttendanceFinal.zoom_uuid == "uuid-W")
+    )
+    assert af is not None and af.present_seconds == 1800
+
+
+@pytest.mark.asyncio
+async def test_reconcile_from_webhook_log_unions_intervals(session):
+    """Direct unit test of the webhook-log reconcile (free-account path)."""
+    session.add_all(
+        [
+            AttendanceSession(
+                zoom_uuid="U1",
+                zoom_participant_uuid="p1",
+                user_id="user-1",
+                email="a@x.com",
+                display_name="A",
+                joined_at=datetime(2026, 6, 21, 10, 0, tzinfo=UTC),
+                left_at=datetime(2026, 6, 21, 10, 20, tzinfo=UTC),
+            ),
+            AttendanceSession(
+                zoom_uuid="U1",
+                zoom_participant_uuid="p2",
+                user_id="user-1",
+                email="a@x.com",
+                display_name="A",
+                joined_at=datetime(2026, 6, 21, 10, 15, tzinfo=UTC),
+                left_at=datetime(2026, 6, 21, 10, 40, tzinfo=UTC),
+            ),
+        ]
+    )
+    await session.commit()
+
+    n = await attendance_tasks.reconcile_from_webhook_log(session, "U1")
+    assert n == 1  # same identity, reconnect unioned
+    af = await session.scalar(
+        select(AttendanceFinal).where(AttendanceFinal.zoom_uuid == "U1")
+    )
+    assert af.present_seconds == 40 * 60  # 10:00–10:40 unioned, not summed
 
 
 def _async_return(value):
