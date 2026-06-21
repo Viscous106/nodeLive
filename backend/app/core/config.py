@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     ZOOM_S2S_ACCOUNT_ID: str = ""
     ZOOM_S2S_CLIENT_ID: str = ""
     ZOOM_S2S_CLIENT_SECRET: str = ""
+    # Zoom user (email or userId) that hosts auto-created class meetings and whose
+    # ZAK lets an instructor START a meeting from inside the app. S2S has no "me",
+    # so this must be a real user on the Zoom account.
+    ZOOM_HOST_EMAIL: str = ""
     # Delay before reconciling attendance against the Reports API, giving Zoom
     # time to finalize the participant report after the meeting ends.
     ATTENDANCE_RECONCILE_DELAY_SECS: int = 5 * 60

@@ -12,6 +12,8 @@ class ZoomJoinOut(CamelModel):
     signature: str
     sdk_key: str
     zoom_meeting_id: str
+    password: str = ""  # meeting passcode (from Zoom when auto-created)
+    zak: str = ""  # host token — lets an instructor START the meeting via the SDK
 
 
 class CueCardCreate(CamelModel):

@@ -123,3 +123,72 @@ async def test_join_unknown_session_404(client, session):
 
     resp = await client.post("/api/sessions/nope/join")
     assert resp.status_code == 404
+
+
+# --- S2S real-meeting path (host auto-creates a meeting + gets a ZAK) ---------
+
+
+async def test_host_join_creates_real_meeting_and_returns_zak(
+    client, session, monkeypatch
+):
+    import app.api.live as live
+
+    async def fake_ensure(current_id, topic):
+        return {"id": "99887766", "password": "p4ss"}
+
+    async def fake_zak():
+        return "ZAK-TOKEN"
+
+    monkeypatch.setattr(live.zoom_meetings, "is_configured", lambda: True)
+    monkeypatch.setattr(live.zoom_meetings, "ensure_meeting", fake_ensure)
+    monkeypatch.setattr(live.zoom_meetings, "get_host_zak", fake_zak)
+
+    host = await _user(session, "prof@example.com", "INSTRUCTOR")
+    await _session_row(session, host)
+    await _login(client, "prof@example.com")
+
+    body = (await client.post("/api/sessions/s1/join")).json()
+    assert body["zoomMeetingId"] == "99887766"  # placeholder replaced w/ real id
+    assert body["password"] == "p4ss"
+    assert body["zak"] == "ZAK-TOKEN"
+    assert _payload(body["signature"])["role"] == 1
+    assert _payload(body["signature"])["mn"] == "99887766"
+
+
+async def test_student_join_gets_password_no_zak(client, session, monkeypatch):
+    import app.api.live as live
+
+    async def fake_get(mid):
+        return {"id": mid, "password": "p4ss"}
+
+    monkeypatch.setattr(live.zoom_meetings, "is_configured", lambda: True)
+    monkeypatch.setattr(live.zoom_meetings, "get_meeting", fake_get)
+
+    host = await _user(session, "prof@example.com", "INSTRUCTOR")
+    await _session_row(session, host)
+    sid = await _user(session, "stu@example.com", "STUDENT")
+    await _enroll(session, sid)
+    await _login(client, "stu@example.com")
+
+    body = (await client.post("/api/sessions/s1/join")).json()
+    assert body["password"] == "p4ss"
+    assert body["zak"] == ""
+    assert _payload(body["signature"])["role"] == 0
+
+
+async def test_student_join_409_before_host_starts(client, session, monkeypatch):
+    import app.api.live as live
+
+    async def fake_none(mid):
+        return None
+
+    monkeypatch.setattr(live.zoom_meetings, "is_configured", lambda: True)
+    monkeypatch.setattr(live.zoom_meetings, "get_meeting", fake_none)
+
+    host = await _user(session, "prof@example.com", "INSTRUCTOR")
+    await _session_row(session, host)
+    sid = await _user(session, "stu@example.com", "STUDENT")
+    await _enroll(session, sid)
+    await _login(client, "stu@example.com")
+
+    assert (await client.post("/api/sessions/s1/join")).status_code == 409
