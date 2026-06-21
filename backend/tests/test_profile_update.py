@@ -68,7 +68,5 @@ async def test_blank_display_name_rejected(client):
 @pytest.mark.asyncio
 async def test_non_http_avatar_url_rejected(client):
     await _signup(client)
-    r = await client.patch(
-        "/api/auth/me", json={"avatarUrl": "javascript:alert(1)"}
-    )
+    r = await client.patch("/api/auth/me", json={"avatarUrl": "javascript:alert(1)"})
     assert r.status_code == 422

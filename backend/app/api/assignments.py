@@ -188,9 +188,7 @@ async def list_submissions(
 async def get_upload_url(
     assignment_id: str,
     filename: str = Query(...),
-    content_type: str = Query(
-        default="application/octet-stream", alias="contentType"
-    ),
+    content_type: str = Query(default="application/octet-stream", alias="contentType"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UploadUrlOut:
