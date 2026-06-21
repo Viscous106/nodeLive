@@ -19,6 +19,7 @@ celery_app = Celery(
     include=[
         "app.workers.quiz_tasks",
         "app.workers.attendance_tasks",
+        "app.workers.session_tasks",
     ],  # more added per feature
 )
 
@@ -31,3 +32,11 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
 )
+
+# Scheduled (beat) tasks. Requires `celery beat` running alongside the worker.
+celery_app.conf.beat_schedule = {
+    "session-janitor-hourly": {
+        "task": "sessions.janitor",
+        "schedule": 3600.0,  # every hour
+    },
+}

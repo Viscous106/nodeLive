@@ -176,6 +176,28 @@ export function useCancelSession() {
   })
 }
 
+export function useEndSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<ClassSession>(`/api/admin/sessions/${id}/end`),
+    onSuccess: () => {
+      // Broad invalidation covers the status-filtered keys (e.g. the ENDED
+      // list AttendanceTab reads), so the just-ended session appears there.
+      qc.invalidateQueries({ queryKey: SESSIONS_KEY })
+      toast({ variant: 'success', title: 'Session ended' })
+    },
+    onError: (e) =>
+      toast({
+        variant: 'error',
+        title:
+          e instanceof ApiError && e.status === 409
+            ? 'Session is already ended or cancelled.'
+            : 'Could not end the session.',
+      }),
+  })
+}
+
 // --- instructor list (for host picker) ---------------------------------------
 
 export function useInstructors() {

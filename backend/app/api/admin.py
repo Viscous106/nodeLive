@@ -10,7 +10,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, nulls_last, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_org_role
@@ -36,6 +36,7 @@ from app.schemas.org import (
 from app.schemas.session import ClassSessionOut
 from app.services.enrollment import enroll_all_users
 from app.services.roles import assign_role, count_org_admins
+from app.workers import attendance_tasks
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 public_router = APIRouter(tags=["admin"])
@@ -223,6 +224,40 @@ async def cancel_session(
     cs.status = SessionStatus.CANCELLED
     await db.commit()
     await db.refresh(cs)
+    return cs
+
+
+@router.post("/sessions/{session_id}/end", response_model=ClassSessionOut)
+async def end_session(
+    session_id: str,
+    membership: Membership = Depends(_admin),
+    db: AsyncSession = Depends(get_db),
+) -> ClassSession:
+    """Manually end a session — admin fallback for when the Zoom webhook never
+    fires. Marks it ENDED and triggers the attendance reconcile if a Meeting
+    record exists, so the Attendance tab can surface the just-ended session."""
+    cs = await db.get(ClassSession, session_id)
+    if cs is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    if cs.status not in (SessionStatus.SCHEDULED, SessionStatus.LIVE):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Session is already ended or cancelled"
+        )
+
+    cs.status = SessionStatus.ENDED
+    cs.ended_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(cs)
+
+    if cs.zoom_meeting_id:
+        meeting = await db.scalar(
+            select(Meeting)
+            .where(Meeting.zoom_meeting_id == cs.zoom_meeting_id)
+            .order_by(nulls_last(Meeting.ended_at.desc()))
+            .limit(1)
+        )
+        if meeting is not None:
+            attendance_tasks.schedule_reconcile(meeting.zoom_uuid)
     return cs
 
 

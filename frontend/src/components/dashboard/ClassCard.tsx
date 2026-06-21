@@ -11,6 +11,7 @@ function timeRange(iso: string, mins: number): string {
 }
 
 export function ClassCard({ session }: { session: ClassSession }) {
+  const isLive = session.status === 'LIVE'
   return (
     <div className="flex items-start gap-3 rounded-card border border-border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-card">
       <span
@@ -20,18 +21,26 @@ export function ClassCard({ session }: { session: ClassSession }) {
         {session.title.charAt(0).toUpperCase()}
       </span>
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-text-primary">
-          {session.title}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-semibold text-text-primary">
+            {session.title}
+          </p>
+          {isLive && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">
+              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+              LIVE
+            </span>
+          )}
+        </div>
         <p className="mt-0.5 text-xs text-text-muted">Live Meeting</p>
         <p className="mt-1 text-xs text-text-muted">
           {timeRange(session.scheduledAt, session.durationMins)}
         </p>
         <Link
-          to={`/session/${session.id}`}
+          to={isLive ? `/live/${session.id}` : `/session/${session.id}`}
           className="mt-1.5 inline-block text-sm font-medium text-text-link"
         >
-          View details
+          {isLive ? 'Join now →' : 'View details'}
         </Link>
       </div>
     </div>

@@ -101,7 +101,13 @@ async def run_reconcile(
     return len(finals)
 
 
-@celery_app.task(name="attendance.reconcile")
+@celery_app.task(
+    name="attendance.reconcile",
+    autoretry_for=(Exception,),
+    max_retries=5,
+    retry_backoff=True,  # exponential: 1s, 2s, 4s, 8s, 16s
+    retry_backoff_max=300,  # cap at 5 minutes
+)
 def reconcile_attendance(zoom_uuid: str) -> int:
     return asyncio.run(run_reconcile(zoom_uuid))
 

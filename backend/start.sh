@@ -14,6 +14,10 @@ alembic upgrade head
 # doesn't wait on seeding, and a seed hiccup can't block the service coming up.
 python -m scripts.seed &
 if [ "${RUN_WORKER:-1}" != "0" ]; then
+  # Beat fires scheduled tasks (e.g. the stale-LIVE-session janitor). Its
+  # schedule DB lives in /tmp (the app dir may be read-only on the deploy image).
+  celery -A app.workers.celery_app beat --loglevel=warning \
+    --schedule /tmp/celerybeat-schedule &
   celery -A app.workers.celery_app worker --pool=solo --concurrency=1 \
     --loglevel=warning &
 fi

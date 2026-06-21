@@ -1,4 +1,4 @@
-import { CalendarPlus, Pencil, Plus, X } from 'lucide-react'
+import { CalendarPlus, CheckSquare, Pencil, Plus, X } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 
@@ -15,6 +15,7 @@ import {
   useCancelSession,
   useCreateCourse,
   useCreateSession,
+  useEndSession,
   useMembers,
   useUpdateSession,
 } from '@/hooks/useAdmin'
@@ -55,6 +56,7 @@ export function SessionsTab() {
   const create = useCreateSession()
   const update = useUpdateSession()
   const cancel = useCancelSession()
+  const end = useEndSession()
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ ...EMPTY })
@@ -151,6 +153,16 @@ export function SessionsTab() {
                   className="rounded-btn p-2 text-text-secondary hover:bg-border-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40"
                 >
                   <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => end.mutate(s.id)}
+                  disabled={s.status !== 'LIVE' || end.isPending}
+                  aria-label={`End ${s.title}`}
+                  title="End session"
+                  className="rounded-btn p-2 text-success hover:bg-success/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40"
+                >
+                  <CheckSquare className="h-4 w-4" />
                 </button>
                 <button
                   type="button"

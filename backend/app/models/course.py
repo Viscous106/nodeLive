@@ -56,6 +56,9 @@ class ClassSession(Base):
         default=SessionStatus.SCHEDULED,
         nullable=False,
     )
+    ended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

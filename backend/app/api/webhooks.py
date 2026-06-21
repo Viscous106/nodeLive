@@ -16,6 +16,7 @@ Order matters and mirrors the reference:
 import hashlib
 import hmac
 import json
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Request
@@ -27,8 +28,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.attendance import AttendanceSession, Meeting, WebhookEvent
+from app.models.course import ClassSession, SessionStatus
 from app.utils.attendance import build_event_id, parse_zoom_time
 from app.workers import attendance_tasks, recording_tasks
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["webhooks"])
 
@@ -76,6 +80,7 @@ async def zoom_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         await _handle_event(db, event)
     except Exception:
         await db.rollback()
+        logger.exception("webhook handler error for event %s", event.get("event"))
     return JSONResponse({"status": "ok"})
 
 
@@ -173,5 +178,17 @@ async def _record_leave(db: AsyncSession, zoom_uuid: str, p: dict) -> None:
 
 async def _mark_ended(db: AsyncSession, zoom_uuid: str, ended: float | None) -> None:
     meeting = await db.scalar(select(Meeting).where(Meeting.zoom_uuid == zoom_uuid))
-    if meeting is not None:
-        meeting.ended_at = _dt(ended)
+    if meeting is None:
+        return
+    ended_dt = _dt(ended)
+    meeting.ended_at = ended_dt
+    # Flip the matching ClassSession so the Attendance tab (status=ENDED) sees it.
+    if meeting.zoom_meeting_id:
+        cs = await db.scalar(
+            select(ClassSession).where(
+                ClassSession.zoom_meeting_id == meeting.zoom_meeting_id
+            )
+        )
+        if cs is not None and cs.status == SessionStatus.LIVE:
+            cs.status = SessionStatus.ENDED
+            cs.ended_at = ended_dt or datetime.now(UTC)

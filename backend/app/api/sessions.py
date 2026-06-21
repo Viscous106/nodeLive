@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_current_user, require_role
@@ -119,10 +119,15 @@ async def list_sessions(
             ClassSession.status.notin_([SessionStatus.ENDED, SessionStatus.CANCELLED]),
         ).order_by(ClassSession.scheduled_at)
     elif status == "past":
+        # A still-LIVE session whose scheduled time has passed is NOT "past".
         stmt = stmt.where(
             or_(
-                ClassSession.scheduled_at < now,
                 ClassSession.status == SessionStatus.ENDED,
+                ClassSession.status == SessionStatus.CANCELLED,
+                and_(
+                    ClassSession.scheduled_at < now,
+                    ClassSession.status != SessionStatus.LIVE,
+                ),
             )
         ).order_by(ClassSession.scheduled_at.desc())
     else:
