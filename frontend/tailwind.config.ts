@@ -4,6 +4,7 @@ import type { Config } from 'tailwindcss'
 // Inter, 8px card radius. Loaded by globals.css via `@config`.
 const config: Config = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'selector',
   theme: {
     extend: {
       fontFamily: {
@@ -14,16 +15,20 @@ const config: Config = {
         danger: { DEFAULT: '#DC2626' },
         gold: { DEFAULT: '#F59E0B', border: '#D97706' },
 
-        page: '#EFF6FF',
-        card: '#FFFFFF',
+        page: 'var(--color-page)',
+        card: 'var(--color-card)',
         'dark-banner': '#1E3A8A',
 
-        'text-primary': '#111827',
-        'text-secondary': '#374151',
-        'text-muted': '#6B7280',
-        'text-link': '#2563EB',
+        'text-primary': 'var(--color-text-primary)',
+        'text-secondary': 'var(--color-text-secondary)',
+        'text-muted': 'var(--color-text-muted)',
+        'text-link': 'var(--color-text-link)',
 
-        border: { DEFAULT: '#E2E8F0', muted: '#F1F5F9', focus: '#3B82F6' },
+        border: {
+          DEFAULT: 'var(--color-border)',
+          muted: 'var(--color-border-muted)',
+          focus: '#3B82F6',
+        },
 
         success: { DEFAULT: '#16A34A', light: '#22C55E' },
         warning: { DEFAULT: '#D97706', light: '#F59E0B' },
