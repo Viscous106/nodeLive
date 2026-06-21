@@ -18,11 +18,12 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 import httpx
-from sqlalchemy import delete
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
-from app.models.attendance import AttendanceFinal
+from app.models.attendance import AttendanceFinal, AttendanceSession
 from app.utils.attendance import encode_meeting_uuid, reconcile_participants
 from app.utils.zoom_auth import get_zoom_access_token
 from app.workers.celery_app import celery_app
@@ -137,6 +138,70 @@ async def run_reconcile(
     return len(finals)
 
 
+async def reconcile_from_webhook_log(db: AsyncSession, uuid: str) -> int:
+    """Compute attendance from the webhook participant log (AttendanceSession).
+
+    The free-Zoom-account path: the Reports/past_meetings REST APIs are paid-only,
+    but `meeting.participant_joined/left` webhooks fire on every plan and we store
+    them here. Same interval-union math (best-effort: depends on webhook delivery).
+    """
+    rows = list(
+        await db.scalars(
+            select(AttendanceSession).where(AttendanceSession.zoom_uuid == uuid)
+        )
+    )
+    participants = [
+        {
+            "customer_key": r.user_id,
+            "email": r.email,
+            "name": r.display_name,
+            "join_time": r.joined_at.isoformat() if r.joined_at else None,
+            "leave_time": r.left_at.isoformat() if r.left_at else None,
+        }
+        for r in rows
+    ]
+    finals = reconcile_participants(participants)
+    await db.execute(delete(AttendanceFinal).where(AttendanceFinal.zoom_uuid == uuid))
+    now = datetime.now(UTC)
+    for f in finals:
+        db.add(
+            AttendanceFinal(
+                zoom_uuid=uuid,
+                user_id=f["user_id"],
+                email=f["email"],
+                display_name=f["display_name"],
+                present_seconds=f["present_seconds"],
+                sessions=f["sessions"],
+                computed_at=now,
+            )
+        )
+    await db.commit()
+    logger.info(
+        "attendance from webhook log %s: %d rows -> %d attendees",
+        uuid,
+        len(rows),
+        len(finals),
+    )
+    return len(finals)
+
+
+async def run_reconcile_with_fallback(uuid: str) -> int:
+    """Reports/past_meetings API first; on a paid/scope 4xx, fall back to the
+    webhook participant log so free-account attendance still computes."""
+    try:
+        return await run_reconcile(uuid)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code in (400, 401, 403):
+            logger.warning(
+                "reconcile API unavailable (%s) for %s; using webhook log",
+                e.response.status_code,
+                uuid,
+            )
+            async with AsyncSessionLocal() as db:
+                return await reconcile_from_webhook_log(db, uuid)
+        raise
+
+
 @celery_app.task(
     name="attendance.reconcile",
     autoretry_for=(Exception,),
@@ -145,7 +210,7 @@ async def run_reconcile(
     retry_backoff_max=300,  # cap at 5 minutes
 )
 def reconcile_attendance(zoom_uuid: str) -> int:
-    return asyncio.run(run_reconcile(zoom_uuid))
+    return asyncio.run(run_reconcile_with_fallback(zoom_uuid))
 
 
 def schedule_reconcile(zoom_uuid: str) -> None:
