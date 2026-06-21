@@ -10,7 +10,9 @@
 set -e
 
 alembic upgrade head
-python -m scripts.seed
+# Seed in the background so the web port opens immediately — Render's port scan
+# doesn't wait on seeding, and a seed hiccup can't block the service coming up.
+python -m scripts.seed &
 if [ "${RUN_WORKER:-1}" != "0" ]; then
   celery -A app.workers.celery_app worker --pool=solo --concurrency=1 \
     --loglevel=warning &

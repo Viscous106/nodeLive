@@ -12,7 +12,7 @@ Dev A and Dev B build them.
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -60,6 +60,12 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         """Liveness probe — no dependencies, always cheap."""
         return {"status": "ok", "app": settings.APP_NAME}
+
+    @app.head("/", include_in_schema=False)
+    async def head_root() -> Response:
+        """Render's port scan probes `HEAD /`; the SPA route is GET-only, so
+        answer 200 here to keep the scan (and the deploy logs) clean."""
+        return Response(status_code=200)
 
     @app.get("/health/ready", tags=["health"])
     async def readiness() -> dict[str, str]:
