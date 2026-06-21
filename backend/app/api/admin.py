@@ -39,7 +39,7 @@ from app.schemas.org import (
 from app.schemas.session import ClassSessionOut
 from app.services.enrollment import enroll_all_users
 from app.services.roles import assign_role, count_org_admins
-from app.utils import zoom_meetings
+from app.utils import zoom_auth, zoom_meetings
 from app.workers import attendance_tasks
 
 logger = logging.getLogger(__name__)
@@ -499,6 +499,10 @@ async def sync_attendance(
         return SyncAttendanceOut(
             ok=False, error="Zoom Server-to-Server OAuth is not configured."
         )
+
+    # Drop the cached S2S token so this manual sync always mints a fresh one —
+    # otherwise newly-added Zoom scopes wouldn't apply until the ~1h TTL lapses.
+    zoom_auth.reset_token_cache()
 
     try:
         # Known instances (from webhooks, if any) + every past occurrence Zoom
