@@ -15,7 +15,7 @@ import {
   useCancelSession,
   useCreateCourse,
   useCreateSession,
-  useInstructors,
+  useMembers,
   useUpdateSession,
 } from '@/hooks/useAdmin'
 import type { ClassSession, SessionStatus } from '@/types'
@@ -51,7 +51,7 @@ const EMPTY = {
 export function SessionsTab() {
   const { data: sessions, isLoading } = useAdminSessions()
   const { data: courses } = useAdminCourses()
-  const { data: instructors } = useInstructors()
+  const { data: members } = useMembers()
   const create = useCreateSession()
   const update = useUpdateSession()
   const cancel = useCancelSession()
@@ -206,7 +206,7 @@ export function SessionsTab() {
               </div>
               {!editingId && (
                 <div>
-                  <Label htmlFor="s-host">Instructor (host)</Label>
+                  <Label htmlFor="s-host">Host (starts the meeting)</Label>
                   <select
                     id="s-host"
                     value={form.hostId}
@@ -214,7 +214,7 @@ export function SessionsTab() {
                     className="h-10 w-full rounded-btn border border-border bg-card px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
                     <option value="">Me (default)</option>
-                    {instructors?.map((m) => (
+                    {members?.map((m) => (
                       <option key={m.userId} value={m.userId}>
                         {m.displayName} ({m.role})
                       </option>

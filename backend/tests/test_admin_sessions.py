@@ -236,3 +236,24 @@ async def test_non_admin_cannot_create_course(client, session):
     await _login(client, "stu@x.com")
     r = await client.post("/api/admin/courses", json={"title": "X"})
     assert r.status_code == 403
+
+
+async def test_admin_can_assign_student_as_host(client, session):
+    # The scheduler may hand the host role to any member, incl. a student.
+    admin = await _user(session, "admin2@x.com", UserRole.ADMIN)
+    student = await _user(session, "presenter@x.com", UserRole.STUDENT)
+    await _course(session, cid="c-host", title="Seminar")
+    await _login(client, "admin2@x.com")
+
+    r = await client.post(
+        "/api/sessions",
+        json={
+            "courseId": "c-host",
+            "title": "Student-led",
+            "scheduledAt": datetime.now(UTC).isoformat(),
+            "hostId": student.id,
+        },
+    )
+    assert r.status_code == 201
+    assert r.json()["hostId"] == student.id  # student is the designated host
+    assert r.json()["hostId"] != admin.id
