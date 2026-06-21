@@ -136,3 +136,32 @@ async def test_grading_email_skipped_without_smtp(client, session):
             )
     assert r.status_code == 200
     mock_smtp.assert_not_called()
+
+
+async def test_grade_notification_escapes_html_in_body():
+    from app.utils import email as email_mod
+
+    captured: dict = {}
+
+    def fake_sync(to, subject, body_text, body_html):
+        captured["html"] = body_html
+
+    with patch("app.utils.email.settings") as ms:
+        ms.SMTP_HOST = "smtp.example.com"
+        ms.SMTP_PORT = 587
+        ms.SMTP_USERNAME = ""
+        ms.SMTP_FROM = "noreply@linkhq.app"
+        with patch("app.utils.email._send_sync", side_effect=fake_sync):
+            await email_mod.send_grade_notification(
+                to="s@x.com",
+                student_name="Stu",
+                assignment_title="<script>alert(1)</script>",
+                grade=90,
+                max_points=100,
+                feedback="<img src=x onerror=alert(1)>",
+            )
+
+    html_body = captured["html"]
+    assert "<script>" not in html_body
+    assert "&lt;script&gt;" in html_body
+    assert "<img" not in html_body  # feedback markup neutralized

@@ -53,13 +53,27 @@ dev + prod origins):
       "http://localhost:5173",
       "https://app.your-domain.com"
     ],
-    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedMethods": ["GET", "HEAD", "PUT"],
     "AllowedHeaders": ["Range", "Content-Type"],
     "ExposeHeaders": ["Content-Range", "Accept-Ranges", "Content-Length", "ETag"],
     "MaxAgeSeconds": 3600
   }
 ]
 ```
+
+### Assignment file uploads also need this bucket CORS
+
+The assignment file-upload feature (`POST /api/assignments/:id/upload-url` →
+browser `PUT` straight to R2, then `GET /api/submissions/:id/file-url` to
+download) uploads **directly from the page** to a presigned R2 URL. That's why
+`PUT` is in `AllowedMethods` above — without it the browser's CORS preflight
+blocks the upload and the student sees the "File upload failed — submit a link or
+text instead" toast (graceful fallback, but the file never lands). The download
+link reuses the same presigned-`GET` path as the recording player, so no extra
+CORS is needed for it.
+
+If `R2_*` is unset entirely, both endpoints return **501** and the UI degrades to
+text/link submissions — no CORS needed in that mode.
 
 ## 4. Zoom auto-ingest (optional — needs paid Zoom cloud recording)
 

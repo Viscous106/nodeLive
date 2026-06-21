@@ -1,6 +1,7 @@
 """SMTP email sender. Gracefully skips when SMTP_HOST is not configured."""
 
 import asyncio
+import html
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -48,7 +49,10 @@ async def send_grade_notification(
 ) -> None:
     pct = round(grade / max_points * 100) if max_points else 0
     fb_text = f"\nFeedback: {feedback}" if feedback else ""
-    fb_html = f"<p><strong>Feedback:</strong> {feedback}</p>" if feedback else ""
+    # HTML values are escaped — feedback/title/name are user-authored.
+    fb_html = (
+        f"<p><strong>Feedback:</strong> {html.escape(feedback)}</p>" if feedback else ""
+    )
     body_text = (
         f"Hi {student_name},\n\n"
         f"Your submission for '{assignment_title}' has been graded.\n\n"
@@ -56,8 +60,8 @@ async def send_grade_notification(
         "— linkHQ"
     )
     body_html = (
-        f"<p>Hi {student_name},</p>"
-        f"<p>Your submission for <strong>{assignment_title}</strong>"
+        f"<p>Hi {html.escape(student_name)},</p>"
+        f"<p>Your submission for <strong>{html.escape(assignment_title)}</strong>"
         " has been graded.</p>"
         f"<p><strong>Grade:</strong> {grade}/{max_points} ({pct}%)</p>"
         f"{fb_html}"
@@ -86,8 +90,9 @@ async def send_session_scheduled(
     )
     body_html = (
         f"<p>A new session has been scheduled in"
-        f" <strong>{course_title}</strong>:</p>"
-        f"<p><strong>{session_title}</strong><br>{scheduled_at_str}</p>"
+        f" <strong>{html.escape(course_title)}</strong>:</p>"
+        f"<p><strong>{html.escape(session_title)}</strong>"
+        f"<br>{scheduled_at_str}</p>"
         "<p>— linkHQ</p>"
     )
     for email, _name in recipients:
