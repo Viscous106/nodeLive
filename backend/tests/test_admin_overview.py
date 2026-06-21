@@ -39,7 +39,9 @@ async def _course(session, cid="c1", title="DB"):
     return c
 
 
-async def _session(session, course, host, status=SessionStatus.SCHEDULED, offset_days=1):
+async def _session(
+    session, course, host, status=SessionStatus.SCHEDULED, offset_days=1
+):
     cs = ClassSession(
         course_id=course.id,
         host_id=host.id,
@@ -57,7 +59,7 @@ async def _session(session, course, host, status=SessionStatus.SCHEDULED, offset
 async def test_overview_counts(client, session):
     admin = await _user(session, "admin@x.com", UserRole.ADMIN)
     student = await _user(session, "stu@x.com", UserRole.STUDENT)
-    instructor = await _user(session, "inst@x.com", UserRole.INSTRUCTOR)
+    await _user(session, "inst@x.com", UserRole.INSTRUCTOR)
     course = await _course(session)
     await _session(session, course, admin, SessionStatus.SCHEDULED, offset_days=1)
     await _session(session, course, admin, SessionStatus.ENDED, offset_days=-1)
