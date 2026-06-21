@@ -216,3 +216,32 @@ async def test_non_host_admin_joins_as_participant_not_duplicate_host(
     body = (await client.post("/api/sessions/s1/join")).json()
     assert _payload(body["signature"])["role"] == 0  # participant, not host
     assert body["zak"] == ""  # does NOT receive the host ZAK
+
+
+async def test_host_join_flips_scheduled_session_to_live(client, session):
+    # The host clicking "Join video" must make the class LIVE so students (who
+    # are blocked until status == LIVE) can then join.
+    from datetime import UTC, datetime
+
+    from app.models.course import ClassSession, Course, SessionStatus
+
+    host = await _user(session, "prof@example.com", "INSTRUCTOR")
+    session.add(Course(id="c1", title="DB"))
+    await session.flush()
+    cs = ClassSession(
+        id="s1",
+        course_id="c1",
+        host_id=host,
+        title="T",
+        scheduled_at=datetime(2026, 7, 1, tzinfo=UTC),
+        duration_mins=60,
+        zoom_meeting_id="88012345",
+        status=SessionStatus.SCHEDULED,
+    )
+    session.add(cs)
+    await session.commit()
+    await _login(client, "prof@example.com")
+
+    assert (await client.post("/api/sessions/s1/join")).status_code == 200
+    await session.refresh(cs)
+    assert cs.status == SessionStatus.LIVE

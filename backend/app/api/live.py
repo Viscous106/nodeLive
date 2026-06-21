@@ -26,7 +26,7 @@ from app.auth.deps import get_current_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.assignment import Assignment
-from app.models.course import ClassSession, Enrollment
+from app.models.course import ClassSession, Enrollment, SessionStatus
 from app.models.live_meeting import (
     Bookmark,
     CueCard,
@@ -218,6 +218,12 @@ async def join(
             password = existing.get("password", "")
     elif not cs.zoom_meeting_id:
         raise HTTPException(status.HTTP_409_CONFLICT, "Session has no Zoom meeting yet")
+
+    # The host starting the class flips it LIVE so enrolled students can reach
+    # the live page (it blocks non-hosts until status == LIVE).
+    if is_zoom_host and cs.status is not SessionStatus.LIVE:
+        cs.status = SessionStatus.LIVE
+        await db.commit()
 
     role = 1 if is_zoom_host else 0
     signature = generate_zoom_signature(
