@@ -72,9 +72,7 @@ async def my_progress(
     # 2. Course rows
     courses = {
         c.id: c
-        for c in await db.scalars(
-            select(Course).where(Course.id.in_(course_ids))
-        )
+        for c in await db.scalars(select(Course).where(Course.id.in_(course_ids)))
     }
 
     # 3. Assignments for enrolled courses
@@ -109,9 +107,7 @@ async def my_progress(
 
     # 6. Watch progress for ENDED sessions that have a stored recording
     ended_with_zoom = [
-        s
-        for s in sessions
-        if s.zoom_meeting_id and s.status == SessionStatus.ENDED
+        s for s in sessions if s.zoom_meeting_id and s.status == SessionStatus.ENDED
     ]
     watch_by_session_id: dict[str, float] = {}
     if ended_with_zoom:
@@ -140,9 +136,7 @@ async def my_progress(
                 m = meeting_by_mid.get(s.zoom_meeting_id)
                 if m:
                     wp = watch_by_zuuid.get(m.zoom_uuid)
-                    watch_by_session_id[s.id] = (
-                        wp.percent_complete if wp else 0.0
-                    )
+                    watch_by_session_id[s.id] = wp.percent_complete if wp else 0.0
 
     # 7. Build per-course output
     assignments_by_course: dict[str, list[Assignment]] = {}
@@ -167,9 +161,7 @@ async def my_progress(
                 due_at=a.due_at,
                 status=subs_by_aid[a.id].status if a.id in subs_by_aid else None,
                 grade=subs_by_aid[a.id].grade if a.id in subs_by_aid else None,
-                feedback=(
-                    subs_by_aid[a.id].feedback if a.id in subs_by_aid else None
-                ),
+                feedback=(subs_by_aid[a.id].feedback if a.id in subs_by_aid else None),
                 submitted_at=(
                     subs_by_aid[a.id].submitted_at if a.id in subs_by_aid else None
                 ),
