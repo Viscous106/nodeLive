@@ -32,7 +32,7 @@ export function ZoomPanel({
   canStart = false,
 }: Props) {
   return (
-    <div className="relative flex-1 bg-black">
+    <div className="relative flex-1 overflow-y-auto bg-black">
       <div ref={rootRef} id="zoomAppRoot" className="h-full w-full" />
 
       {status !== 'in-meeting' && (
