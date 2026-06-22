@@ -94,3 +94,15 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Lock the embedded Zoom Component View to Ribbon layout.
+ * Zoom only renders the control toolbar (mic / camera / share / leave) in Ribbon
+ * view — Speaker & Gallery hide it, and the embedded SDK can't recreate those
+ * buttons. `useZoomSDK` already forces Ribbon on join; hiding the view-switcher
+ * icons stops a user from switching to a layout that drops the toolbar. */
+#zoomAppRoot .full-screen-widget--gallery-icon,
+#zoomAppRoot .full-screen-widget--sidebysidegallery-icon,
+#zoomAppRoot .full-screen-widget--sidebysidespeaker-icon,
+#zoomAppRoot .full-screen-widget--speaker-icon {
+  display: none !important;
+}
