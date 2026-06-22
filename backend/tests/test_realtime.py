@@ -61,6 +61,84 @@ async def test_caption_buffer_keeps_last_50():
         await redis.aclose()
 
 
+# --- join authorization (enrollment-gated broadcast access) -----------------
+
+
+async def _mk_user(session, email, role):
+    from app.auth.security import hash_password
+    from app.models.user import User
+
+    u = User(
+        email=email,
+        hashed_password=hash_password("passphrase-realtime"),
+        display_name=email.split("@")[0],
+        role=role,
+    )
+    session.add(u)
+    await session.commit()
+    return u
+
+
+async def _mk_session(session, host, cid="c-rt"):
+    from datetime import UTC, datetime
+
+    from app.models.course import ClassSession, Course
+
+    session.add(Course(id=cid, title="RT"))
+    await session.flush()
+    cs = ClassSession(
+        course_id=cid,
+        host_id=host.id,
+        title="RT Session",
+        scheduled_at=datetime.now(UTC),
+        duration_mins=60,
+    )
+    session.add(cs)
+    await session.commit()
+    return cs
+
+
+async def test_join_auth_denies_unenrolled_student(session):
+    from app.models.user import UserRole
+    from app.realtime.server import authorize_join
+
+    host = await _mk_user(session, "host-rt@x.com", UserRole.INSTRUCTOR)
+    outsider = await _mk_user(session, "outsider@x.com", UserRole.STUDENT)
+    cs = await _mk_session(session, host)
+
+    allowed, privileged = await authorize_join(session, outsider, cs, outsider.id)
+    assert allowed is False
+    assert privileged is False
+
+
+async def test_join_auth_allows_enrolled_student(session):
+    from app.models.course import Enrollment
+    from app.models.user import UserRole
+    from app.realtime.server import authorize_join
+
+    host = await _mk_user(session, "host-rt@x.com", UserRole.INSTRUCTOR)
+    student = await _mk_user(session, "enrolled@x.com", UserRole.STUDENT)
+    cs = await _mk_session(session, host)
+    session.add(Enrollment(user_id=student.id, course_id=cs.course_id))
+    await session.commit()
+
+    allowed, privileged = await authorize_join(session, student, cs, student.id)
+    assert allowed is True
+    assert privileged is False
+
+
+async def test_join_auth_allows_privileged_without_enrollment(session):
+    from app.models.user import UserRole
+    from app.realtime.server import authorize_join
+
+    host = await _mk_user(session, "host-rt@x.com", UserRole.INSTRUCTOR)
+    cs = await _mk_session(session, host)
+    # Instructor host, no enrollment row — still privileged.
+    allowed, privileged = await authorize_join(session, host, cs, host.id)
+    assert allowed is True
+    assert privileged is True
+
+
 # --- wiring -----------------------------------------------------------------
 
 

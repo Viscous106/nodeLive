@@ -16,11 +16,13 @@ from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 import socketio
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.models.attendance import SessionPresence
-from app.models.course import ClassSession
+from app.models.course import ClassSession, Enrollment
 from app.models.user import User, UserRole
 from app.realtime.auth import resolve_user_id_from_environ
 from app.realtime.captions import buffer_caption
@@ -73,6 +75,36 @@ async def connect(sid: str, environ: dict, auth: dict | None = None) -> bool:
     return True
 
 
+async def authorize_join(
+    db: AsyncSession, user: User | None, cs: ClassSession | None, user_id: str
+) -> tuple[bool, bool]:
+    """Decide whether a socket may enter a session's rooms.
+
+    Returns (allowed, is_privileged). Instructors/admins/the host are always
+    allowed and privileged. Everyone else must be enrolled in the session's
+    course — otherwise they could listen to all live broadcasts (polls, quizzes,
+    notices, leaderboard) without authorization.
+    """
+    is_privileged = bool(
+        user
+        and (
+            user.role in (UserRole.INSTRUCTOR, UserRole.ADMIN)
+            or (cs is not None and cs.host_id == user_id)
+        )
+    )
+    if is_privileged:
+        return True, True
+    if user is None or cs is None:
+        return False, False
+    enrolled = await db.scalar(
+        select(Enrollment).where(
+            Enrollment.user_id == user_id,
+            Enrollment.course_id == cs.course_id,
+        )
+    )
+    return enrolled is not None, False
+
+
 @sio.event
 async def join_session(sid: str, data: dict) -> None:
     session = await sio.get_session(sid)
@@ -84,13 +116,9 @@ async def join_session(sid: str, data: dict) -> None:
     async with AsyncSessionLocal() as db:
         user = await db.get(User, user_id)
         cs = await db.get(ClassSession, session_id)
-    is_privileged = bool(
-        user
-        and (
-            user.role in (UserRole.INSTRUCTOR, UserRole.ADMIN)
-            or (cs is not None and cs.host_id == user_id)
-        )
-    )
+        allowed, is_privileged = await authorize_join(db, user, cs, user_id)
+    if not allowed:
+        return
 
     for room in compute_rooms(session_id, user_id, is_privileged=is_privileged):
         await sio.enter_room(sid, room)
