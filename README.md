@@ -1,4 +1,4 @@
-# linkHQ
+# [linkHQ](https://linkhq-luar.onrender.com/dashboard)
 
 Production-grade educational live-meeting LMS with Zoom Meeting SDK integration. Built for Scaler School of Technology.
 
