@@ -6,6 +6,16 @@ from app.utils.recording_storage import is_configured, pick_mp4
 from app.workers.recording_tasks import run_ingest
 
 
+def test_recording_ingest_module_registered_with_worker():
+    # The recording.completed webhook enqueues recording.ingest via apply_async;
+    # the Celery worker only registers tasks from modules in `include`. If this
+    # module is missing, the worker receives an unregistered task and ingest never
+    # runs.
+    from app.workers.celery_app import celery_app
+
+    assert "app.workers.recording_tasks" in celery_app.conf.include
+
+
 def test_pick_mp4_prefers_speaker_view():
     files = [
         {"file_type": "MP4", "recording_type": "audio_only", "id": "a"},

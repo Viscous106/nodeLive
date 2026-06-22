@@ -20,6 +20,7 @@ celery_app = Celery(
         "app.workers.quiz_tasks",
         "app.workers.attendance_tasks",
         "app.workers.session_tasks",
+        "app.workers.recording_tasks",
     ],  # more added per feature
 )
 
