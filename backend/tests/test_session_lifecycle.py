@@ -210,6 +210,35 @@ async def test_janitor_ends_stale_live_sessions(engine, session):
     assert fresh.status == SessionStatus.LIVE  # not yet stale
 
 
+@pytest.mark.asyncio
+async def test_janitor_schedules_reconcile_for_ended_sessions(engine, session):
+    # A session auto-ended by the janitor (webhook missed) must still get its
+    # attendance reconciled — otherwise it lands in the Attendance tab with no data
+    # until an admin manually syncs.
+    admin = await _user(session, "admin@x.com", UserRole.ADMIN)
+    course = await _course(session)
+    stale = await _session(
+        session,
+        course,
+        admin,
+        status=SessionStatus.LIVE,
+        scheduled_at=datetime.now(UTC) - timedelta(hours=3),
+        zoom_id="555000999",
+    )
+    session.add(Meeting(zoom_uuid="uuid-jan-1", zoom_meeting_id="555000999"))
+    await session.commit()
+
+    calls: list[str] = []
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    n = await session_tasks._run_janitor(
+        session_factory=maker, reconcile=lambda u: calls.append(u)
+    )
+    assert n == 1
+    assert calls == ["uuid-jan-1"]
+    await session.refresh(stale)
+    assert stale.status == SessionStatus.ENDED
+
+
 # --- past filter excludes LIVE -----------------------------------------------
 
 
