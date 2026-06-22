@@ -95,14 +95,15 @@ body {
   scrollbar-width: none;
 }
 
-/* Lock the embedded Zoom Component View to Ribbon layout.
- * Zoom only renders the control toolbar (mic / camera / share / leave) in Ribbon
- * view — Speaker & Gallery hide it, and the embedded SDK can't recreate those
- * buttons. `useZoomSDK` already forces Ribbon on join; hiding the view-switcher
- * icons stops a user from switching to a layout that drops the toolbar. */
-#zoomAppRoot .full-screen-widget--gallery-icon,
-#zoomAppRoot .full-screen-widget--sidebysidegallery-icon,
-#zoomAppRoot .full-screen-widget--sidebysidespeaker-icon,
-#zoomAppRoot .full-screen-widget--speaker-icon {
-  display: none !important;
+/* Keep Zoom's control toolbar (mic / camera / share / leave) reachable in EVERY
+ * Component-View layout, Speaker included. Some layouts hide or cover the footer;
+ * the embedded SDK can't recreate these buttons (no startVideo/unmute API), so the
+ * native footer is the only source of them. Force it visible, on top, and
+ * clickable. `useZoomSDK` reserves the footer's 52px height so it isn't clipped. */
+#zoomAppRoot .footer {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 20 !important;
+  pointer-events: auto !important;
 }
