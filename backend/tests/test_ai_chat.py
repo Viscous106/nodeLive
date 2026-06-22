@@ -62,6 +62,17 @@ def test_sanitize_strips_tags_and_role_markers():
     assert "hi" in out
 
 
+def test_ai_system_prompt_is_lecture_scoped():
+    """The AI must be constrained to the lecture (title + transcript) and told to
+    refuse unrelated questions — not act as a general assistant."""
+    prompt = live_mod._ai_system_prompt("Indexes 101", ["we discussed B-trees"])
+    assert "Indexes 101" in prompt  # lecture title anchors the topic
+    assert "B-trees" in prompt  # transcript context included
+    low = prompt.lower()
+    assert "only" in low  # scoped to this lecture
+    assert "unrelated" in low  # explicit refusal of off-topic questions
+
+
 async def test_ai_chat_501_when_unconfigured(client, session, monkeypatch):
     await _scenario(session)
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
