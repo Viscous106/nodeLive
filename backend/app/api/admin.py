@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_org_role
 from app.db.session import get_db
-from app.models.attendance import AttendanceFinal, Meeting
+from app.models.attendance import AttendanceFinal, Meeting, SessionPresence
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.org import Invitation, InvitationStatus, Membership, Organization
 from app.models.user import User, UserRole
@@ -40,6 +40,7 @@ from app.schemas.session import ClassSessionOut
 from app.services.enrollment import enroll_all_users
 from app.services.roles import assign_role, count_org_admins
 from app.utils import zoom_auth, zoom_meetings
+from app.utils.intervals import covered_seconds
 from app.workers import attendance_tasks
 
 logger = logging.getLogger(__name__)
@@ -434,9 +435,15 @@ async def session_attendance(
         .all()
     )
 
-    # Find all Zoom meeting occurrences for this session's zoom_meeting_id.
-    # AttendanceFinal.user_id is the app user id (set via customerKey in join).
-    present: dict[str, int] = {}
+    # Present time = union of intervals across BOTH attendance sources, per user:
+    #  1. Zoom (AttendanceFinal: Reports API or webhook participant log)
+    #  2. socket presence (SessionPresence: our own server-observed signal)
+    # Unioning avoids double-counting where the two overlap; either source alone
+    # covers the case the other missed (free plan / dropped webhook / no socket).
+    intervals: dict[str, list] = {}
+    # AttendanceFinal totals — kept as a floor if its audit spans are absent.
+    base_secs: dict[str, int] = {}
+
     if cs.zoom_meeting_id:
         zoom_uuids = (
             (
@@ -463,8 +470,36 @@ async def session_attendance(
                 .all()
             )
             for af in finals:
-                uid = af.user_id
-                present[uid] = present.get(uid, 0) + af.present_seconds
+                base_secs[af.user_id] = (
+                    base_secs.get(af.user_id, 0) + af.present_seconds
+                )
+                for span in af.sessions or []:
+                    intervals.setdefault(af.user_id, []).append(span)
+
+    # Socket presence — keyed natively on our session id (no Zoom needed).
+    end_default = cs.ended_at or datetime.now(UTC)
+    presence_rows = (
+        (
+            await db.execute(
+                select(SessionPresence).where(SessionPresence.session_id == cs.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for p in presence_rows:
+        if p.joined_at is None:
+            continue
+        start = p.joined_at.timestamp()
+        end = (p.left_at or end_default).timestamp()
+        if end > start:
+            intervals.setdefault(p.user_id, []).append((start, end))
+
+    present: dict[str, int] = {}
+    for uid in set(base_secs) | set(intervals):
+        union_secs = round(covered_seconds(intervals.get(uid, [])))
+        # Guard: if AttendanceFinal had a total but no audit spans, keep the total.
+        present[uid] = max(union_secs, base_secs.get(uid, 0))
 
     return [
         AttendeeOut(
@@ -472,7 +507,7 @@ async def session_attendance(
             display_name=u.display_name,
             email=u.email,
             present_seconds=present.get(u.id, 0),
-            attended=u.id in present,
+            attended=present.get(u.id, 0) > 0,
         )
         for u in rows
     ]

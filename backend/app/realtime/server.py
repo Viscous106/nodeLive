@@ -12,11 +12,14 @@ Connection lifecycle:
 Feature event handlers (M3) register against `sio` in dedicated modules.
 """
 
+from datetime import UTC, datetime
+
 import redis.asyncio as aioredis
 import socketio
 
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
+from app.models.attendance import SessionPresence
 from app.models.course import ClassSession
 from app.models.user import User, UserRole
 from app.realtime.auth import resolve_user_id_from_environ
@@ -30,6 +33,34 @@ sio = socketio.AsyncServer(
 )
 
 _redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+
+# sid → SessionPresence.id, so `disconnect` can close the row opened on join.
+# TTL guards against a leaked row if a disconnect is ever missed.
+_PRESENCE_KEY = "presence:sid:{sid}"
+_PRESENCE_TTL = 60 * 60 * 12  # 12h
+
+
+async def _close_presence(presence_id: str) -> None:
+    async with AsyncSessionLocal() as db:
+        pres = await db.get(SessionPresence, presence_id)
+        if pres is not None and pres.left_at is None:
+            pres.left_at = datetime.now(UTC)
+            await db.commit()
+
+
+async def _open_presence(sid: str, session_id: str, user_id: str) -> None:
+    """Record a join. Close any still-open row for this sid first (re-join)."""
+    prev = await _redis.get(_PRESENCE_KEY.format(sid=sid))
+    if prev:
+        await _close_presence(prev)
+    async with AsyncSessionLocal() as db:
+        pres = SessionPresence(
+            session_id=session_id, user_id=user_id, joined_at=datetime.now(UTC)
+        )
+        db.add(pres)
+        await db.commit()
+        presence_id = pres.id
+    await _redis.set(_PRESENCE_KEY.format(sid=sid), presence_id, ex=_PRESENCE_TTL)
 
 
 @sio.event
@@ -63,6 +94,9 @@ async def join_session(sid: str, data: dict) -> None:
 
     for room in compute_rooms(session_id, user_id, is_privileged=is_privileged):
         await sio.enter_room(sid, room)
+
+    # Record attendance presence (server-observed; the free-plan signal).
+    await _open_presence(sid, session_id, user_id)
 
 
 @sio.event
@@ -105,7 +139,12 @@ async def raise_hand_down(sid: str, data: dict) -> None:
 
 @sio.event
 async def disconnect(sid: str) -> None:
-    return None
+    # Close the attendance presence row opened for this socket.
+    key = _PRESENCE_KEY.format(sid=sid)
+    presence_id = await _redis.get(key)
+    if presence_id:
+        await _redis.delete(key)
+        await _close_presence(presence_id)
 
 
 def mount(fastapi_app) -> socketio.ASGIApp:

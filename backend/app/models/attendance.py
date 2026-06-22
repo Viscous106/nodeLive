@@ -128,6 +128,27 @@ class WebhookEvent(Base):
     )
 
 
+class SessionPresence(Base):
+    """App-native attendance signal: one row per authenticated socket connection
+    to a session's live room. The server observes connect (`join_session`) and
+    disconnect from a cookie-authed socket, so it's harder to fake than a
+    client-reported timestamp. Reconnects → multiple rows, unioned at read time
+    via `intervals.py` — the free-Zoom-plan attendance source / webhook backstop.
+    """
+
+    __tablename__ = "session_presence"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    left_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class WatchProgress(Base):
     """Per-user watch coverage for a recording, keyed by the recording's
     occurrence (zoom_uuid) + the real app user id. `watched_segments` is the
