@@ -91,9 +91,18 @@ export function useZoomSDK(
       // leaves the window at its old, oversized height and it overflows the
       // panel, forcing a scroll to reach the toolbar.
       const root = rootRef.current
+      // Zoom renders its control toolbar (mic / camera / share / leave) BELOW the
+      // video area. If we size the video to the full panel height, video+toolbar
+      // overflows the panel bottom and the toolbar is clipped (the page is
+      // overflow-hidden) — making the controls unreachable. Reserve the toolbar's
+      // height so it lands inside the panel.
+      const TOOLBAR_H = 56
       const panelSize = () => ({
         width: Math.max(Math.floor(root.getBoundingClientRect().width), 320),
-        height: Math.max(Math.floor(root.getBoundingClientRect().height), 240),
+        height: Math.max(
+          Math.floor(root.getBoundingClientRect().height) - TOOLBAR_H,
+          240,
+        ),
       })
       const initialSize = panelSize()
 
@@ -106,12 +115,13 @@ export function useZoomSDK(
         customize: {
           video: {
             isResizable: true,
-            // Ribbon is the ONLY Component-View layout that keeps the control
-            // toolbar (mic / camera / share / leave); Gallery & Speaker render as
-            // overlays that hide it. Anchor it top-left + non-draggable so it
-            // fills the panel instead of floating at a fixed offset (which also
-            // pushed the toolbar off-screen).
-            defaultViewType: 'ribbon' as SuspensionViewType,
+            // Default to Speaker view (large active speaker). The control toolbar
+            // (mic / camera / share / leave) is kept reachable by (a) reserving
+            // the footer's height in panelSize so it isn't clipped, and (b) a CSS
+            // rule (globals.css) that forces Zoom's `.footer` visible in every
+            // layout. Anchor top-left + non-draggable so the window fills the
+            // panel instead of floating at a fixed offset.
+            defaultViewType: 'speaker' as SuspensionViewType,
             popper: { disableDraggable: true, anchorPosition: { top: 0, left: 0 } },
             viewSizes: { default: initialSize, ribbon: initialSize },
           },
@@ -147,12 +157,13 @@ export function useZoomSDK(
         }
       })
 
-      // Enforce Ribbon (the layout with the toolbar). Zoom can remember a prior
-      // view, so re-assert it once connected plus a few delayed retries (the view
-      // isn't ready the instant join() resolves).
-      const forceRibbon = () => {
+      // Default to Speaker view. Zoom can remember a prior view, so re-assert it
+      // once connected plus a few delayed retries (the view isn't ready the
+      // instant join() resolves). After these initial retries the user is free to
+      // switch layouts — the footer stays visible in all of them.
+      const forceSpeaker = () => {
         try {
-          const r = c.setViewType?.('ribbon')
+          const r = c.setViewType?.('speaker')
           if (r && typeof r.catch === 'function') r.catch(() => {})
         } catch {
           /* view not ready yet — a retry will catch it */
@@ -172,14 +183,14 @@ export function useZoomSDK(
       }
       c.on('connection-change', (p: { state?: string }) => {
         if (p?.state === 'Connected') {
-          forceRibbon()
+          forceSpeaker()
           applySize()
         }
       })
-      forceRibbon()
+      forceSpeaker()
       ;[400, 1200, 2500, 4000].forEach((ms) =>
         window.setTimeout(() => {
-          forceRibbon()
+          forceSpeaker()
           applySize()
         }, ms),
       )
