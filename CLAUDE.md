@@ -22,6 +22,14 @@ Compliance comes from three sources at deliberately different trust levels:
 2. **Webhooks** (`backend/app/api/webhooks.py`) → durable live log.
 3. **Reports API** (Celery reconcile) → authoritative post-meeting record.
 
+The whole pipeline is gated on a session reaching `ENDED` (a `LIVE` session is
+never reconciled, never appears in the Attendance tab). Status flips three ways:
+Zoom `meeting.ended` webhook, the admin "End Session" button, or the hourly
+janitor that auto-ends stale `LIVE` sessions. On **free Zoom plans** the Reports
+API is paid-only, so reconcile degrades through a fallback chain — Reports →
+`past_meetings` → the webhook participant log — feeding the *same* interval-union
+math. Detail in `backend/CLAUDE.md`.
+
 Watch-tracking mirrors this (player reports actually-played spans; backend unions
 them). The shared primitive is `backend/app/utils/intervals.py` — credit = the
 **union of real time intervals**, so reconnects can't double-count and seek-to-end

@@ -37,6 +37,16 @@ fetches a playback URL, plays via `<video crossOrigin="anonymous">`, and reports
 the scrubber to the end yields partial — not full — watch credit. Hooks live in
 `src/hooks/useRecording.ts`. "Continue Watching" cards (`VideoCard`) link here.
 
+## Admin dashboard
+`src/pages/AdminPage.tsx` — local-state tabs (Overview/Members/Sessions/
+Enrollments/Attendance), components in `src/components/admin/`, hooks in
+`useAdmin.ts`. Two attendance-pipeline gotchas:
+- **AttendanceTab only lists `ENDED` sessions** (reconcile runs post-end). Its
+  "Sync" calls `useSyncAttendance` (the webhook-independent manual reconcile).
+- `useEndSession` invalidates the **broad** `['admin','sessions']` key on purpose
+  — the status-filtered sub-queries (the ENDED list AttendanceTab reads) live
+  under it, so a narrow key would leave the tab stale.
+
 ## Live meeting
 `src/pages/LiveMeetingPage.tsx` — split pane: `ZoomPanel` + `FeaturePanel`
 (Chat/Quiz/Poll/Leaderboard/Bookmarks/Notes) + overlays. This is the heaviest

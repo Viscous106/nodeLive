@@ -42,6 +42,26 @@ not 100%**. Keep its tests.
 `participant.customer_key` → Reports API, so attendance attributes to a real user.
 **Email is the fallback match key** (customer_key is absent for guests).
 
+## Attendance lifecycle + reconcile fallback
+- **Reconcile only runs on `ENDED` sessions.** `ClassSession.status` flips to
+  `ENDED` (and stamps `ended_at`) three ways: the `meeting.ended` webhook
+  (`_mark_ended`), `POST /admin/sessions/{id}/end`, or the hourly `sessions.janitor`
+  Celery task (`app/workers/session_tasks.py`) that auto-ends `LIVE` sessions older
+  than 2h. The janitor needs **`celery beat`** running — `start.sh` launches it
+  alongside the worker; `beat_schedule` lives in `celery_app.py`.
+- **Reconcile degrades for free Zoom plans** (`attendance_tasks.py`): the Reports
+  API (`/report/meetings`, richest, carries `customer_key`) needs `report:read:*`
+  + a paid plan. On a 400/401/403 it falls back to `/past_meetings` (lighter scope,
+  email-match), then to `reconcile_from_webhook_log` (the `AttendanceSession`
+  webhook log — works on any plan). All three feed the same `reconcile_participants`
+  union math. The task auto-retries (5×, exponential backoff) transient errors.
+- **`POST /admin/sessions/{id}/sync-attendance`** is the webhook-independent manual
+  path — refreshes the Zoom token first (so newly-granted scopes apply instantly),
+  then reconciles on demand. Admin Attendance tab is driven by this + `GET
+  /sessions/{id}/attendance`.
+- Zoom S2S token is cached in **Redis** (shared across web + worker, survives
+  restart) with an in-process fallback — `app/utils/zoom_auth.py`.
+
 ## Recordings (M7)
 - Ingest: `recording.completed` webhook → `app/workers/recording_tasks.py`
   (Celery) → download MP4 → stream to R2 (`app/utils/recording_storage.py`,
@@ -58,6 +78,12 @@ not 100%**. Keep its tests.
 uvicorn). It is idempotent — **look users up by EMAIL** (the unique key), not by
 id, or a re-seed on a legacy DB throws `duplicate key ... ix_users_email`. A
 public demo recording is seeded so the player is click-through visible without R2.
+
+## LLM provider (dual)
+`app/utils/llm.py` `stream_chat` is Anthropic-primary, **Groq fallback** (OpenAI
+SSE protocol, parsed via httpx — no SDK). Used by `live.py` AI chat. Falls back to
+Groq when `ANTHROPIC_API_KEY` is unset *or* an Anthropic call fails before emitting
+output. AI is 501 only when **neither** key is set (`is_configured()`).
 
 ## Known incomplete (intentional)
 - Zoom S2S OAuth + R2 ingest are wired to `.env` but only seam-tested offline
