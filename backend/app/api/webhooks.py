@@ -101,6 +101,9 @@ async def _handle_event(db: AsyncSession, event: dict) -> None:
     elif name == "meeting.participant_left":
         await _record_leave(db, zoom_uuid, obj.get("participant") or {})
     elif name == "meeting.ended":
+        # Upsert first so a lone meeting.ended (started/participant events lost)
+        # still records the meeting id and can flip the matching ClassSession.
+        await _upsert_meeting(db, zoom_uuid, obj)
         await _mark_ended(db, zoom_uuid, parse_zoom_time(obj.get("end_time")))
         attendance_tasks.schedule_reconcile(zoom_uuid)
     elif name == "recording.completed":

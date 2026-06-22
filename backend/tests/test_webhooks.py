@@ -251,6 +251,61 @@ async def test_meeting_ended_flips_class_session_to_ended(client, session, sched
     assert cs.ended_at is not None
 
 
+async def test_meeting_ended_flips_session_with_no_prior_meeting_row(
+    client, session, scheduled
+):
+    """If meeting.ended is the only webhook delivered (started/participant events
+    lost), the matching LIVE ClassSession must still flip to ENDED — the handler
+    upserts the Meeting from the ended payload's `id` rather than no-opping."""
+    from datetime import UTC, datetime
+
+    from app.auth.security import hash_password
+    from app.models.course import ClassSession, Course, SessionStatus
+    from app.models.user import User, UserRole
+
+    host = User(
+        email="host-noprior@x.com",
+        hashed_password=hash_password("passphrase-1234"),
+        display_name="Host",
+        role=UserRole.INSTRUCTOR,
+    )
+    session.add(host)
+    session.add(Course(id="c-noprior", title="DB"))
+    await session.flush()
+    cs = ClassSession(
+        id="cs-noprior",
+        course_id="c-noprior",
+        host_id=host.id,
+        title="Live one",
+        scheduled_at=datetime(2026, 6, 20, 10, 0, tzinfo=UTC),
+        duration_mins=60,
+        zoom_meeting_id="991",
+        status=SessionStatus.LIVE,
+    )
+    session.add(cs)
+    await session.commit()
+
+    # Only meeting.ended — no prior meeting.started / Meeting row.
+    await _post(
+        client,
+        {
+            "event": "meeting.ended",
+            "event_ts": 2,
+            "payload": {
+                "object": {
+                    "uuid": "Unoprior",
+                    "id": "991",
+                    "end_time": "2026-06-20T11:00:00Z",
+                }
+            },
+        },
+    )
+
+    await session.refresh(cs)
+    assert cs.status == SessionStatus.ENDED
+    assert cs.ended_at is not None
+
+
 async def test_recording_completed_marks_pending_and_schedules(
     client, session, scheduled, monkeypatch
 ):
