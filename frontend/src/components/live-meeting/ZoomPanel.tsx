@@ -10,6 +10,7 @@ interface Props {
   errorMsg: string
   onJoin: () => void
   hasZoomMeeting?: boolean
+  canStart?: boolean
 }
 
 /**
@@ -18,17 +19,25 @@ interface Props {
  * creds locally) shows an error with retry — the rest of the page still works,
  * since the feature panel is socket-driven and independent of the video.
  *
- * When `hasZoomMeeting` is false an info state is shown instead of the join
- * button — it is not an error, so there is no retry.
+ * When there's no Zoom meeting yet, the HOST still gets a Start button — their
+ * join auto-creates the meeting server-side (S2S). Non-hosts see an info state
+ * (not an error → no retry) until the host starts it.
  */
-export function ZoomPanel({ rootRef, status, errorMsg, onJoin, hasZoomMeeting = true }: Props) {
+export function ZoomPanel({
+  rootRef,
+  status,
+  errorMsg,
+  onJoin,
+  hasZoomMeeting = true,
+  canStart = false,
+}: Props) {
   return (
     <div className="relative flex-1 bg-black">
       <div ref={rootRef} id="zoomAppRoot" className="h-full w-full" />
 
       {status !== 'in-meeting' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black p-6 text-center text-white">
-          {!hasZoomMeeting ? (
+          {!hasZoomMeeting && !canStart ? (
             <div className="flex max-w-md flex-col items-center gap-3">
               <Video size={36} className="text-white/50" />
               <p className="text-sm text-white/70">
@@ -53,9 +62,13 @@ export function ZoomPanel({ rootRef, status, errorMsg, onJoin, hasZoomMeeting = 
             <>
               <Video size={36} className="text-white/70" />
               <p className="text-sm text-white/70">
-                Ready to join the live video.
+                {hasZoomMeeting
+                  ? 'Ready to join the live video.'
+                  : 'Start the class to create the Zoom meeting.'}
               </p>
-              <Button onClick={onJoin}>Join video</Button>
+              <Button onClick={onJoin}>
+                {hasZoomMeeting ? 'Join video' : 'Start video'}
+              </Button>
             </>
           )}
         </div>
