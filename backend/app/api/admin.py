@@ -435,15 +435,34 @@ async def session_attendance(
         .all()
     )
 
-    # Present time = union of intervals across BOTH attendance sources, per user:
+    # Present time = union of intervals across BOTH attendance sources, per enrolled
+    # user:
     #  1. Zoom (AttendanceFinal: Reports API or webhook participant log)
     #  2. socket presence (SessionPresence: our own server-observed signal)
     # Unioning avoids double-counting where the two overlap; either source alone
-    # covers the case the other missed (free plan / dropped webhook / no socket).
+    # covers what the other missed (free plan / dropped webhook / no socket).
+    #
+    # Identity matching is forgiving because Zoom finals arrive keyed three ways:
+    #   - user_id == full User.id     (legacy / full-length customerKey)
+    #   - user_id == User.id[:35]     (the SDK sends customerKey = user.id[:35])
+    #   - email only (user_id NULL)   (free-plan/guest reconcile has no key)
+    # Socket presence is already keyed on the full User.id.
+    by_full = {u.id: u.id for u in rows}
+    by_trunc = {u.id[:35]: u.id for u in rows}
+    by_email = {u.email.lower(): u.id for u in rows if u.email}
+
+    def _resolve(user_id: str | None, email: str | None) -> str | None:
+        if user_id and user_id in by_full:
+            return by_full[user_id]
+        if user_id and user_id in by_trunc:
+            return by_trunc[user_id]
+        if email and email.lower() in by_email:
+            return by_email[email.lower()]
+        return None
+
     intervals: dict[str, list] = {}
     # AttendanceFinal totals — kept as a floor if its audit spans are absent.
     base_secs: dict[str, int] = {}
-
     if cs.zoom_meeting_id:
         zoom_uuids = (
             (
@@ -462,7 +481,6 @@ async def session_attendance(
                     await db.execute(
                         select(AttendanceFinal).where(
                             AttendanceFinal.zoom_uuid.in_(zoom_uuids),
-                            AttendanceFinal.user_id.is_not(None),
                         )
                     )
                 )
@@ -470,13 +488,14 @@ async def session_attendance(
                 .all()
             )
             for af in finals:
-                base_secs[af.user_id] = (
-                    base_secs.get(af.user_id, 0) + af.present_seconds
-                )
+                uid = _resolve(af.user_id, af.email)
+                if uid is None:
+                    continue
+                base_secs[uid] = base_secs.get(uid, 0) + af.present_seconds
                 for span in af.sessions or []:
-                    intervals.setdefault(af.user_id, []).append(span)
+                    intervals.setdefault(uid, []).append(span)
 
-    # Socket presence — keyed natively on our session id (no Zoom needed).
+    # Socket presence — keyed natively on our full user id (no Zoom needed).
     end_default = cs.ended_at or datetime.now(UTC)
     presence_rows = (
         (
@@ -490,10 +509,11 @@ async def session_attendance(
     for p in presence_rows:
         if p.joined_at is None:
             continue
+        uid = _resolve(p.user_id, None) or p.user_id
         start = p.joined_at.timestamp()
         end = (p.left_at or end_default).timestamp()
         if end > start:
-            intervals.setdefault(p.user_id, []).append((start, end))
+            intervals.setdefault(uid, []).append((start, end))
 
     present: dict[str, int] = {}
     for uid in set(base_secs) | set(intervals):

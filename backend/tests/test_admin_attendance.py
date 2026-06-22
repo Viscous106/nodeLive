@@ -120,6 +120,55 @@ async def test_attendance_marks_attended_when_final_record_exists(client, sessio
 
 
 @pytest.mark.asyncio
+async def test_attendance_matches_truncated_customer_key(client, session):
+    # The Zoom SDK sends customerKey = user.id[:35] (35 chars), so the reconciled
+    # AttendanceFinal.user_id is the truncated id — the read must still attribute
+    # it to the full 36-char User.id.
+    admin = await _user(session, "admin@x.com", UserRole.ADMIN)
+    student = await _user(session, "student@x.com", UserRole.STUDENT)
+    course = await _course(session)
+    cs = await _session(session, course, admin, zoom_id="88001122")
+    await _enroll(session, student, course)
+    mtg = await _meeting(session, zoom_id="88001122", zoom_uuid="uuid-trunc")
+    await _attendance(session, mtg.zoom_uuid, student.id[:35], seconds=1200)
+    await _login(client, "admin@x.com")
+
+    r = await client.get(f"/api/admin/sessions/{cs.id}/attendance")
+    assert r.status_code == 200
+    row = next(d for d in r.json() if d["userId"] == student.id)
+    assert row["attended"] is True
+    assert row["presentSeconds"] == 1200
+
+
+@pytest.mark.asyncio
+async def test_attendance_matches_email_only_final(client, session):
+    # Free-plan / guest reconcile has no customer_key, so the final is matched by
+    # email only (user_id is NULL). The read must still attribute it.
+    admin = await _user(session, "admin@x.com", UserRole.ADMIN)
+    student = await _user(session, "student@x.com", UserRole.STUDENT)
+    course = await _course(session)
+    cs = await _session(session, course, admin, zoom_id="66001122")
+    await _enroll(session, student, course)
+    mtg = await _meeting(session, zoom_id="66001122", zoom_uuid="uuid-email")
+    af = AttendanceFinal(
+        zoom_uuid=mtg.zoom_uuid,
+        user_id=None,
+        email=student.email,
+        present_seconds=900,
+        sessions=[],
+    )
+    session.add(af)
+    await session.commit()
+    await _login(client, "admin@x.com")
+
+    r = await client.get(f"/api/admin/sessions/{cs.id}/attendance")
+    assert r.status_code == 200
+    row = next(d for d in r.json() if d["userId"] == student.id)
+    assert row["attended"] is True
+    assert row["presentSeconds"] == 900
+
+
+@pytest.mark.asyncio
 async def test_attendance_no_data_when_no_meeting_record(client, session):
     admin = await _user(session, "admin@x.com", UserRole.ADMIN)
     student = await _user(session, "student@x.com", UserRole.STUDENT)
