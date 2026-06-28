@@ -5,7 +5,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 // COOP/COEP headers are MANDATORY for the Zoom Meeting SDK — its WASM media
 // engine requires cross-origin isolation. Removing these silently breaks
-// audio/video in some browsers. Ported from the linkHQ prototype.
+// audio/video in some browsers. Ported from the nodeLive prototype.
 const crossOriginIsolation = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'require-corp',

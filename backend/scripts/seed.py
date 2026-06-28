@@ -100,7 +100,7 @@ async def seed() -> None:
         # ids, so an id-only check misses them and re-inserts the same email →
         # `duplicate key value violates unique constraint "ix_users_email"`.
         instructor = await db.scalar(
-            select(User).where(User.email == "instructor@linkhq.dev")
+            select(User).where(User.email == "instructor@nodelive.dev")
         )
         course = await db.get(Course, _COURSE_ID)
 
@@ -120,7 +120,7 @@ async def seed() -> None:
         if instructor is None:
             instructor = User(
                 id=_INSTRUCTOR_ID,
-                email="instructor@linkhq.dev",
+                email="instructor@nodelive.dev",
                 hashed_password=hash_password(_PASSWORD),
                 display_name="Prof. Ada",
                 role=UserRole.INSTRUCTOR,
@@ -129,7 +129,7 @@ async def seed() -> None:
 
         students = []
         for i in (1, 2):
-            email = f"student{i}@linkhq.dev"
+            email = f"student{i}@nodelive.dev"
             s = await db.scalar(select(User).where(User.email == email))
             if s is None:
                 s = User(

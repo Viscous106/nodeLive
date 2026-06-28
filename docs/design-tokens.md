@@ -1,4 +1,4 @@
-# Design Tokens — linkHQ LMS
+# Design Tokens — nodeLive LMS
 
 Extracted from Scaler Academy LMS screenshots + user-supplied colors.zip.
 **Font:** Source Sans Pro (both headings and body — confirmed from Scaler typography screenshot)

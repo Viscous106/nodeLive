@@ -13,7 +13,7 @@ Run it against a throwaway MinIO (identical S3 API to R2):
 
     RUN_STORAGE_IT=1 \
     R2_ENDPOINT_URL=http://localhost:9100 R2_ACCESS_KEY_ID=minioadmin \
-    R2_SECRET_ACCESS_KEY=minioadmin R2_BUCKET=linkhq-recordings \
+    R2_SECRET_ACCESS_KEY=minioadmin R2_BUCKET=nodelive-recordings \
     pytest tests/test_recording_storage_integration.py -v
 
 The same command verifies real Cloudflare R2 — just point `R2_*` at the bucket.

@@ -5,7 +5,7 @@
 **Base branch:** `main` (foundation skeleton already merged)  
 **Estimated time:** 4 days  
 **Stack:** React 19 + TSX (frontend) | Python 3.12 + FastAPI + python-socketio (backend)  
-**This is the core differentiator — what makes linkHQ unique vs Scaler**
+**This is the core differentiator — what makes nodeLive unique vs Scaler**
 
 **Status:** ✅ **Implemented.** Milestones M1–M7 plus the live-Zoom follow-up (S2S
 meeting create + host ZAK start) are built and tested — see the verified checklist
@@ -83,7 +83,7 @@ Build the live meeting experience: Zoom Meeting SDK embedded in a production-gra
 
 1. `backend/app/api/live.py` — The live-meeting API module:
    ```python
-   # JWT signature generation (ported from linkHQ testing/server.js)
+   # JWT signature generation (ported from nodeLive testing/server.js)
    @router.post("/api/sessions/{session_id}/join")
    async def get_zoom_signature(
        session_id: str,
@@ -618,7 +618,7 @@ frontend/src/
 
 ---
 
-## Zoom SDK Notes (Critical — from linkHQ testing/ + Appendix D)
+## Zoom SDK Notes (Critical — from nodeLive testing/ + Appendix D)
 
 ```ts
 // Must-have in client.init():
@@ -658,7 +658,7 @@ server: {
 }
 ```
 
-**SDK version:** Keep `@zoom/meetingsdk@^6.1.0` — already tested in linkHQ  
+**SDK version:** Keep `@zoom/meetingsdk@^6.1.0` — already tested in nodeLive  
 **Import pattern:**
 ```ts
 import * as ZoomSDK from '@zoom/meetingsdk/embedded'

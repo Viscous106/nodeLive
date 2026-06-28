@@ -1,4 +1,4 @@
-# CLAUDE.md — frontend (linkHQ SPA)
+# CLAUDE.md — frontend (nodeLive SPA)
 
 React 19 + TypeScript + Vite 8 · Tailwind 4 + shadcn/ui · Zustand (client state) +
 TanStack Query (server state) · socket.io-client · Zoom Meeting SDK v6.1.

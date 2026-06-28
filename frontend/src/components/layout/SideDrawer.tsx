@@ -87,7 +87,7 @@ export function SideDrawer() {
         )}
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
-          <span className="text-base font-bold text-text-primary">linkHQ</span>
+          <span className="text-base font-bold text-text-primary">nodeLive</span>
           <button
             ref={closeRef}
             type="button"

@@ -1,6 +1,6 @@
-# Team & Branch Strategy — linkHQ
+# Team & Branch Strategy — nodeLive
 
-**Repo:** https://github.com/Viscous106/linkHQ  
+**Repo:** https://github.com/Viscous106/nodeLive  
 **Team size:** 2  
 **Stack:** React 19 + TSX + Vite (frontend) | Python 3.12 + FastAPI (backend)  
 **Design reference:** Scaler Academy LMS (`/home/laterabhi/Projects/lms-ui-research/`)  

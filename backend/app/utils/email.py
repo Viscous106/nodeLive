@@ -57,7 +57,7 @@ async def send_grade_notification(
         f"Hi {student_name},\n\n"
         f"Your submission for '{assignment_title}' has been graded.\n\n"
         f"Grade: {grade}/{max_points} ({pct}%){fb_text}\n\n"
-        "— linkHQ"
+        "— nodeLive"
     )
     body_html = (
         f"<p>Hi {html.escape(student_name)},</p>"
@@ -65,11 +65,11 @@ async def send_grade_notification(
         " has been graded.</p>"
         f"<p><strong>Grade:</strong> {grade}/{max_points} ({pct}%)</p>"
         f"{fb_html}"
-        "<p>— linkHQ</p>"
+        "<p>— nodeLive</p>"
     )
     await send_email(
         to=to,
-        subject=f"[linkHQ] Assignment graded: {assignment_title}",
+        subject=f"[nodeLive] Assignment graded: {assignment_title}",
         body_text=body_text,
         body_html=body_html,
     )
@@ -86,19 +86,19 @@ async def send_session_scheduled(
     body_text = (
         f"A new session has been scheduled in {course_title}:\n\n"
         f"{session_title}\n{scheduled_at_str}\n\n"
-        "— linkHQ"
+        "— nodeLive"
     )
     body_html = (
         f"<p>A new session has been scheduled in"
         f" <strong>{html.escape(course_title)}</strong>:</p>"
         f"<p><strong>{html.escape(session_title)}</strong>"
         f"<br>{scheduled_at_str}</p>"
-        "<p>— linkHQ</p>"
+        "<p>— nodeLive</p>"
     )
     for email, _name in recipients:
         await send_email(
             to=email,
-            subject=f"[linkHQ] New session: {session_title}",
+            subject=f"[nodeLive] New session: {session_title}",
             body_text=body_text,
             body_html=body_html,
         )

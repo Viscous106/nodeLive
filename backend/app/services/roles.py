@@ -27,7 +27,7 @@ async def get_or_create_default_org(db: AsyncSession) -> Organization:
         select(Organization).where(Organization.slug == DEFAULT_ORG_SLUG)
     )
     if org is None:
-        org = Organization(name="linkHQ", slug=DEFAULT_ORG_SLUG)
+        org = Organization(name="nodeLive", slug=DEFAULT_ORG_SLUG)
         db.add(org)
         await db.flush()
     return org

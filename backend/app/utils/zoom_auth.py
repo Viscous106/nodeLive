@@ -21,7 +21,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 _TOKEN_URL = "https://zoom.us/oauth/token"
-_CACHE_KEY = "linkhq:zoom:access_token"
+_CACHE_KEY = "nodelive:zoom:access_token"
 # In-process fallback used when Redis is unreachable, so a Redis blip can't break
 # Zoom calls (it just means each process may fetch its own token).
 _cache: dict = {"token": None, "expires_at": 0.0}

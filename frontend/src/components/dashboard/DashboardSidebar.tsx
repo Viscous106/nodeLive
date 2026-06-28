@@ -92,7 +92,7 @@ export function DashboardSidebar() {
   return (
     <div className="space-y-4">
       <div className="rounded-card bg-gradient-to-br from-dark-banner to-[#312E81] p-4 text-white">
-        <p className="text-sm font-semibold">Your year at linkHQ</p>
+        <p className="text-sm font-semibold">Your year at nodeLive</p>
         <p className="mt-1 text-xs text-white/70">
           Your recap appears once you’ve attended your first sessions.
         </p>

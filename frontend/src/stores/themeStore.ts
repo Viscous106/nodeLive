@@ -21,14 +21,14 @@ export const useThemeStore = create<ThemeState>()(
           return { dark: next }
         }),
     }),
-    { name: 'linkhq-theme' },
+    { name: 'nodelive-theme' },
   ),
 )
 
 // Apply stored theme before first React paint to avoid flash.
 if (typeof window !== 'undefined') {
   try {
-    const raw = localStorage.getItem('linkhq-theme')
+    const raw = localStorage.getItem('nodelive-theme')
     const isDark = raw
       ? (JSON.parse(raw) as { state?: { dark?: boolean } }).state?.dark === true
       : false

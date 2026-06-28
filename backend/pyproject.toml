@@ -1,7 +1,7 @@
 [project]
-name = "linkhq-backend"
+name = "nodelive-backend"
 version = "0.1.0"
-description = "linkHQ backend — FastAPI live-meeting LMS"
+description = "nodeLive backend — FastAPI live-meeting LMS"
 requires-python = ">=3.12"
 
 [tool.ruff]

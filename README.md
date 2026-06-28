@@ -1,4 +1,4 @@
-# [linkHQ](https://linkhq-luar.onrender.com/dashboard)
+# [nodeLive](https://nodelive-luar.onrender.com/dashboard)
 
 Production-grade educational live-meeting LMS with Zoom Meeting SDK integration. Built for Scaler School of Technology.
 
@@ -39,7 +39,7 @@ An LMS dashboard (Scaler-inspired design) where the core feature is a **live mee
 ## Repository Structure
 
 ```
-linkHQ/
+nodeLive/
 ├── docs/
 │   ├── TEAM.md               — Branch strategy, team assignments, shared setup guide
 │   ├── design-tokens.md      — Full Tailwind config, colors, typography, spacing
@@ -118,7 +118,7 @@ open http://localhost:8000/docs    # Swagger UI
 # Log in (saves the HttpOnly session cookie), then hit the live routes
 curl -c cj.txt -X POST localhost:8000/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"instructor@linkhq.dev","password":"password123"}'
+  -d '{"email":"instructor@nodelive.dev","password":"password123"}'
 curl -b cj.txt localhost:8000/api/sessions                       # list sessions → grab an id
 curl -b cj.txt -X POST localhost:8000/api/sessions/<ID>/join     # → { signature, sdkKey, zoomMeetingId }
 curl -b cj.txt localhost:8000/api/sessions/<ID>/live/state       # reconnect snapshot
@@ -127,7 +127,7 @@ curl -b cj.txt localhost:8000/api/sessions/<ID>/live/state       # reconnect sna
 ### Quality gates (CI)
 
 ```bash
-# Backend (needs postgres up — conftest auto-creates the linkhq_test DB)
+# Backend (needs postgres up — conftest auto-creates the nodelive_test DB)
 cd backend && source .venv/bin/activate
 ruff check . && ruff format --check .   # lint
 pytest                                  # tests

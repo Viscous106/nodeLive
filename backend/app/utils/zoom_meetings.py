@@ -3,7 +3,7 @@
 The seeded sessions carry placeholder Zoom numbers, so the SDK join fails with
 "meeting number not found (3707)". This module creates an actual Zoom meeting on
 demand and fetches the host's **ZAK** token, so an instructor can START a class
-from inside linkHQ and students can join it.
+from inside nodeLive and students can join it.
 
 Live HTTP is behind a module-level `_get`/`_post` so the join endpoint's wiring
 is unit-tested by monkeypatching these functions; the real REST calls are ported
@@ -56,7 +56,7 @@ async def get_meeting(meeting_id: str) -> dict | None:
 async def create_meeting(topic: str) -> dict:
     """Create a recurring-no-fixed-time meeting the host can start anytime."""
     body = {
-        "topic": topic[:200] or "linkHQ Class",
+        "topic": topic[:200] or "nodeLive Class",
         "type": 3,  # recurring, no fixed time → joinable/startable on demand
         "settings": {
             "join_before_host": False,

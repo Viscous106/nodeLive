@@ -48,7 +48,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://edustream:localdev@localhost:5432/edustream
       DIRECT_DATABASE_URL: postgresql+asyncpg://edustream:localdev@localhost:5432/edustream
-      TEST_DATABASE_URL: postgresql+asyncpg://edustream:localdev@localhost:5432/linkhq_test
+      TEST_DATABASE_URL: postgresql+asyncpg://edustream:localdev@localhost:5432/nodelive_test
       REDIS_URL: redis://localhost:6379/0
       AUTH_SECRET: ci-test-secret
       ZOOM_SDK_KEY: ci-test-sdk-key
@@ -76,7 +76,7 @@ jobs:
       - name: Apply migrations
         run: alembic upgrade head
 
-      # No manual test-DB step: tests/conftest.py creates linkhq_test if missing,
+      # No manual test-DB step: tests/conftest.py creates nodelive_test if missing,
       # so CI runs exactly what a dev runs locally.
       - name: Test (pytest)
         run: pytest

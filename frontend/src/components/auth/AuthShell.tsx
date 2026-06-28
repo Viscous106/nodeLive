@@ -18,7 +18,7 @@ export function AuthShell({
         <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-white">
           <GraduationCap className="h-6 w-6" />
         </span>
-        <span className="text-xl font-bold text-text-primary">linkHQ</span>
+        <span className="text-xl font-bold text-text-primary">nodeLive</span>
       </div>
 
       <div className="w-full max-w-[420px] rounded-card border border-border bg-card p-6 shadow-card sm:p-8">

@@ -12,7 +12,7 @@
 
 **Run tests with** (from `backend/`, venv active):
 ```bash
-export TEST_DATABASE_URL="postgresql+asyncpg://viscous@localhost:5432/linkhq_test" \
+export TEST_DATABASE_URL="postgresql+asyncpg://viscous@localhost:5432/nodelive_test" \
   REDIS_URL="redis://localhost:6379/0" AUTH_SECRET=x ENVIRONMENT=test \
   ZOOM_SDK_KEY=k ZOOM_SDK_SECRET=s
 ```
@@ -248,7 +248,7 @@ def upgrade() -> None:
     op.execute(
         sa.text(
             "INSERT INTO organizations (id, name, slug, created_at) "
-            "VALUES (:id, 'linkHQ', 'default', now())"
+            "VALUES (:id, 'nodeLive', 'default', now())"
         ).bindparams(id=org_id)
     )
     op.execute(
@@ -284,9 +284,9 @@ python -c "
 import asyncio, asyncpg
 async def m():
     a = await asyncpg.connect(host='localhost', user='viscous', database='postgres')
-    await a.execute('DROP DATABASE IF EXISTS linkhq_mig'); await a.execute('CREATE DATABASE linkhq_mig'); await a.close()
+    await a.execute('DROP DATABASE IF EXISTS nodelive_mig'); await a.execute('CREATE DATABASE nodelive_mig'); await a.close()
 asyncio.run(m())"
-MIG="postgresql+asyncpg://viscous@localhost:5432/linkhq_mig"
+MIG="postgresql+asyncpg://viscous@localhost:5432/nodelive_mig"
 DIRECT_DATABASE_URL=$MIG DATABASE_URL=$MIG alembic upgrade head
 DIRECT_DATABASE_URL=$MIG DATABASE_URL=$MIG alembic downgrade -1
 DIRECT_DATABASE_URL=$MIG DATABASE_URL=$MIG alembic upgrade head
@@ -299,13 +299,13 @@ Expected: each command prints the upgrade/downgrade lines with no error; the 3 t
 DIRECT_DATABASE_URL=$MIG DATABASE_URL=$MIG python -c "
 import asyncio, asyncpg
 async def m():
-    c = await asyncpg.connect(host='localhost', user='viscous', database='linkhq_mig')
+    c = await asyncpg.connect(host='localhost', user='viscous', database='nodelive_mig')
     cols = await c.fetch(\"SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='role'\")
     print('users.role kept:', len(cols)==1)
     await c.close()
 asyncio.run(m())"
 ```
-Expected: `users.role kept: True`. Drop `linkhq_mig` afterward.
+Expected: `users.role kept: True`. Drop `nodelive_mig` afterward.
 
 - [ ] **Step 5: Commit**
 
@@ -378,7 +378,7 @@ DEFAULT_ORG_SLUG = "default"
 async def ensure_default_org(db: AsyncSession) -> Organization:
     org = await db.scalar(select(Organization).where(Organization.slug == DEFAULT_ORG_SLUG))
     if org is None:
-        org = Organization(name="linkHQ", slug=DEFAULT_ORG_SLUG)
+        org = Organization(name="nodeLive", slug=DEFAULT_ORG_SLUG)
         db.add(org)
         await db.commit()
         await db.refresh(org)
@@ -743,7 +743,7 @@ async def test_invite_create_list_revoke_and_public_preview(client, session):
     client.cookies.clear()
     p = await client.get(f"/api/invitations/{token}")
     assert p.status_code == 200
-    assert p.json() == {"orgName": "linkHQ", "email": "prof@uni.edu", "role": "INSTRUCTOR"}
+    assert p.json() == {"orgName": "nodeLive", "email": "prof@uni.edu", "role": "INSTRUCTOR"}
 
     # list + revoke (admin)
     await client.post("/api/auth/login", json={"email": "admin@x.com", "password": _PW})
@@ -1058,14 +1058,14 @@ from app.services.orgs import ensure_default_org, ensure_membership, set_member_
 ```
 And in the "already present" branch, also `await ensure_default_org(db)` and
 `await set_member_role(db, <instructor id>, UserRole.ADMIN)` so re-runs bootstrap
-an admin. (Look up the instructor by email `instructor@linkhq.dev`.)
+an admin. (Look up the instructor by email `instructor@nodelive.dev`.)
 
 - [ ] **Step 3: Verify against the local dev DB**
 
 ```bash
 python -m scripts.seed
-python -m scripts.set_role student1@linkhq.dev INSTRUCTOR
-python -m scripts.set_role student1@linkhq.dev STUDENT
+python -m scripts.set_role student1@nodelive.dev INSTRUCTOR
+python -m scripts.set_role student1@nodelive.dev STUDENT
 ```
 Expected: seed prints the LIVE-session + no error; `set_role` prints the ✓ lines.
 

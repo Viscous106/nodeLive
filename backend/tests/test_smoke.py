@@ -15,7 +15,7 @@ client = TestClient(app)
 
 
 def test_app_imports_and_creates():
-    assert app.title == "linkHQ"
+    assert app.title == "nodeLive"
 
 
 def test_health_liveness():

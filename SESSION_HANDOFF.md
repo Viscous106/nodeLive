@@ -1,15 +1,15 @@
-# SESSION HANDOFF — linkHQ
+# SESSION HANDOFF — nodeLive
 
 _Living status doc. Update before ending a long session; read it to resume._
 _Last updated: 2026-06-22._
 
 ## Deployment
-- **Live:** https://linkhq.onrender.com (Render free tier — sleeps when idle,
+- **Live:** https://nodelive.onrender.com (Render free tier — sleeps when idle,
   first request wakes it ~30–60s; OOMs past ~15 concurrent users).
 - Builds `main` via Docker; auto-deploys on push. `start.sh`: alembic → seed (bg)
   → Celery beat + worker (`solo` pool) → uvicorn `app.main:socket_app`.
-- Demo logins (password `password123`): `instructor@linkhq.dev` (host/admin),
-  `student1@linkhq.dev`, `student2@linkhq.dev`.
+- Demo logins (password `password123`): `instructor@nodelive.dev` (host/admin),
+  `student1@nodelive.dev`, `student2@nodelive.dev`.
 
 ## ✅ Done 2026-06-22 (attendance pipeline + reliability, on `main`)
 - **Attendance pipeline repaired end-to-end** — sessions now flip to `ENDED`
