@@ -1,6 +1,6 @@
 # Production Fix Plan
 
-Fixes for linkHQ live deployment. All env vars already configured on Render —
+Fixes for nodeLive live deployment. All env vars already configured on Render —
 remaining work is purely code changes. Ordered P0 → P3.
 
 ---
@@ -173,7 +173,7 @@ Cache is lost on restart and not shared across multiple Celery workers.
 **File:** `backend/app/utils/zoom_auth.py`
 
 Replace in-memory dict with Redis (`REDIS_URL` already in config):
-- Key: `linkhq:zoom:access_token`
+- Key: `nodelive:zoom:access_token`
 - TTL: `expires_in - 60` seconds
 - Use `redis.from_url(settings.REDIS_URL, decode_responses=True)`
 

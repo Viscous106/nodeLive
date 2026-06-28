@@ -1,4 +1,4 @@
-# linkHQ backend — Python 3.12, FastAPI stack
+# nodeLive backend — Python 3.12, FastAPI stack
 # Pin to compatible-release ranges; lock exact versions in CI.
 
 # Web framework + ASGI

@@ -2,7 +2,7 @@
 
 **Project:** Educational Live-Class Dashboard on Zoom Meeting SDK  
 **Inspired by:** Scaler Academy Dashboard  
-**Base repo:** linkHQ (React 19 + Vite + TSX + Zoom SDK Component View)  
+**Base repo:** nodeLive (React 19 + Vite + TSX + Zoom SDK Component View)  
 **Stack mandate:** Frontend — React + TSX | Backend — Python + FastAPI *(specified by Scaler team)*  
 **Author:** OfficialAbhinavSingh and Viscous106 
 **Date:** 2026-06-17  
@@ -29,7 +29,7 @@
 15. [CI/CD Pipeline](#15-cicd-pipeline)
 16. [Cost Model](#16-cost-model)
 17. [Phased Roadmap](#17-phased-roadmap)
-18. [Migration Path from linkHQ](#18-migration-path-from-linkhq)
+18. [Migration Path from nodeLive](#18-migration-path-from-nodelive)
 
 ---
 
@@ -37,7 +37,7 @@
 
 EduStream Live is a production-grade educational live-meeting platform that embeds Zoom's Component View SDK inside a custom dashboard — matching Scaler Academy's learner experience. The Zoom SDK provides the video/audio layer; every educational feature is built as sibling React components that communicate with the SDK through its event bus.
 
-### What linkHQ Already Provides (Keep, Extend, Don't Rewrite)
+### What nodeLive Already Provides (Keep, Extend, Don't Rewrite)
 
 | Component | Status | Action |
 |---|---|---|
@@ -127,7 +127,7 @@ EduStream Live is a production-grade educational live-meeting platform that embe
 ### Key Architectural Decisions
 
 **1. Zoom SDK Component View — Not Client View**
-The existing Component View embed in linkHQ is the right choice. It allows building sibling React components that wrap the SDK. Client View takes over the full page, blocking custom UI. This decision is locked in — don't second-guess it.
+The existing Component View embed in nodeLive is the right choice. It allows building sibling React components that wrap the SDK. Client View takes over the full page, blocking custom UI. This decision is locked in — don't second-guess it.
 
 **2. python-socketio (ASGI) with Redis Adapter for Horizontal Scale**
 The backend is Python + FastAPI, so the WebSocket server is `python-socketio` mounted as an ASGI sub-application. When the API runs on multiple uvicorn workers/nodes, `python-socketio`'s `AsyncRedisManager` publishes events to Redis pub/sub so any worker can reach clients connected to any other worker. This is the critical missing piece for production horizontal scaling.
@@ -217,7 +217,7 @@ FastAPI's dependency injection system makes auth middleware clean and testable. 
 
 ### Migration Strategy
 
-Alembic generates versioned migration files in `backend/alembic/versions/`. Run `alembic upgrade head` locally and in CI. The existing SQLite schema maps 1:1 to the SQLAlchemy models below — the linkHQ `lib/db.js` helper functions are replaced by SQLAlchemy async session operations via FastAPI `Depends()`.
+Alembic generates versioned migration files in `backend/alembic/versions/`. Run `alembic upgrade head` locally and in CI. The existing SQLite schema maps 1:1 to the SQLAlchemy models below — the nodeLive `lib/db.js` helper functions are replaced by SQLAlchemy async session operations via FastAPI `Depends()`.
 
 ```bash
 # Generate a migration after changing models
@@ -263,7 +263,7 @@ backend/models/
 │                      Bookmark, Notice, PinnedMessage, LeaderboardPoint
 ├── lms.py           — Assignment, AssignmentSubmission, LectureNote
 ├── attendance.py    — AttendanceSession, AttendanceFinal, WatchProgress
-│                      (ported 1:1 from linkHQ lib/db.js, same schema)
+│                      (ported 1:1 from nodeLive lib/db.js, same schema)
 ├── ai.py            — AiMeetingSummary
 └── webhooks.py      — WebhookEvent (idempotency dedup), MessageReport
 ```
@@ -377,7 +377,7 @@ Use PgBouncer in transaction mode between the app and PostgreSQL. Each FastAPI w
 │   └── /ai-chat
 │       └── POST   /               — send message → stream Claude response
 │
-├── /sessions/:sessionId/recordings  — (from linkHQ, adapted)
+├── /sessions/:sessionId/recordings  — (from nodeLive, adapted)
 │   ├── GET    /url                — signed CloudFront URL
 │   ├── GET    /progress
 │   └── POST   /heartbeat
@@ -401,7 +401,7 @@ Use PgBouncer in transaction mode between the app and PostgreSQL. Each FastAPI w
 │   └── GET    /summary/:sessionId  — post-meeting AI summary
 │
 ├── /webhooks
-│   └── POST   /zoom               — (from linkHQ, kept)
+│   └── POST   /zoom               — (from nodeLive, kept)
 │
 ├── /admin                          — internal admin panel routes
 │   ├── GET    /users
@@ -1026,7 +1026,7 @@ src/
 │   │   └── PersonalLeaderboard.tsx
 │   │
 │   └── recordings/
-│       └── RecordingPlayer.tsx  — from linkHQ, extended with bookmark scrub
+│       └── RecordingPlayer.tsx  — from nodeLive, extended with bookmark scrub
 │
 ├── hooks/
 │   ├── useSocket.ts             — Socket.io connection + reconnect
@@ -1337,7 +1337,7 @@ ElastiCache Redis Cluster Mode with 3 shards:
 
 All static assets (JS bundles, CSS, fonts, images) served via CloudFront with 1-year cache headers. The Vite build outputs content-hashed filenames — no cache invalidation needed on deploy (new hash = new URL).
 
-Recording playback via CloudFront with signed URLs (5-minute TTL, from linkHQ — keep as-is).
+Recording playback via CloudFront with signed URLs (5-minute TTL, from nodeLive — keep as-is).
 
 ### Celery Scaling
 
@@ -1368,7 +1368,7 @@ Celery beat:         1 scheduler task (periodic cron jobs)
 
 ### Critical Security Requirements
 
-**1. Zoom Webhook Signature Verification (already in linkHQ — keep)**
+**1. Zoom Webhook Signature Verification (already in nodeLive — keep)**
 `timingSafeEqual` over raw body. Never parse JSON before verifying.
 
 **2. CSRF Protection**
@@ -1387,7 +1387,7 @@ Content-Security-Policy:
   wasm-src 'self';
 ```
 
-**4. COOP/COEP Headers (already in linkHQ Vite config — port to nginx)**
+**4. COOP/COEP Headers (already in nodeLive Vite config — port to nginx)**
 Required for Zoom SDK's SharedArrayBuffer (WebAssembly):
 ```
 Cross-Origin-Opener-Policy: same-origin
@@ -1810,11 +1810,11 @@ hotfix/*     — direct PR to main + develop
 
 ---
 
-## 18. Migration Path from linkHQ
+## 18. Migration Path from nodeLive
 
 ### What Changes
 
-The linkHQ `testing/` directory is an MVP prototype. The production app is a new directory structure:
+The nodeLive `testing/` directory is an MVP prototype. The production app is a new directory structure:
 ```
 /
 ├── backend/         ← New: Python + FastAPI (replaces testing/server.js + lib/)
@@ -1836,12 +1836,12 @@ The linkHQ `testing/` directory is an MVP prototype. The production app is a new
     │   ├── hooks/          — useZoomSDK.ts, useSocket.ts, useLiveState.ts
     │   ├── stores/         — Zustand stores
     │   └── pages/
-    └── vite.config.ts      — Keep COOP/COEP headers from linkHQ
+    └── vite.config.ts      — Keep COOP/COEP headers from nodeLive
 ```
 
-**What to port from linkHQ `testing/`:**
+**What to port from nodeLive `testing/`:**
 
-| linkHQ File | Action | Notes |
+| nodeLive File | Action | Notes |
 |---|---|---|
 | `lib/intervals.js` | Port to Python | Rewrite `merge_intervals()` in `backend/app/utils/intervals.py` — same logic |
 | `lib/zoomAuth.js` | Port to Python | `backend/app/utils/zoom_auth.py` — S2S OAuth token cache with `aiohttp` |
@@ -1870,7 +1870,7 @@ The linkHQ `testing/` directory is an MVP prototype. The production app is a new
 
 ```bash
 # Clone and setup
-cd /home/laterabhi/Projects/linkHQ
+cd /home/laterabhi/Projects/nodeLive
 
 # Start infrastructure
 docker compose up -d postgres redis pgbouncer
@@ -1916,17 +1916,17 @@ cd backend && pytest --asyncio-mode=auto -v
 
 ## Appendix D — Gaps Found vs Official Zoom React Sample (zoom/meetingsdk-react-sample)
 
-Analysis of the official Zoom React sample (SDK v5, React 18) vs linkHQ (SDK v6.1, React 19) shows linkHQ is architecturally superior — the sample has 3 real bugs that linkHQ already handles correctly:
+Analysis of the official Zoom React sample (SDK v5, React 18) vs nodeLive (SDK v6.1, React 19) shows nodeLive is architecturally superior — the sample has 3 real bugs that nodeLive already handles correctly:
 
-**Bugs in the official sample that linkHQ fixes:**
-- Sample calls `ZoomMtgEmbedded.createClient()` inside the render function body — re-runs on every re-render. linkHQ correctly uses `useRef` + `useEffect([], ...)` to create it once.
-- Sample never calls `ZoomMtgEmbedded.destroyClient()` on unmount — memory/listener leak. linkHQ has cleanup in `useEffect` return.
-- Sample uses `document.getElementById("meetingSDKElement")!` raw DOM query — bypasses React lifecycle. linkHQ uses `useRef<HTMLDivElement>`.
-- Sample does no `res.ok` check before using the signature — crashes silently on server errors. linkHQ validates before proceeding.
-- Sample has no COOP/COEP headers in `vite.config.ts` — Zoom WASM fails in some browsers. linkHQ has both headers set.
-- Sample omits `optimizeDeps.include: ['@zoom/meetingsdk/embedded']` — Vite pre-bundling failures. linkHQ has this.
+**Bugs in the official sample that nodeLive fixes:**
+- Sample calls `ZoomMtgEmbedded.createClient()` inside the render function body — re-runs on every re-render. nodeLive correctly uses `useRef` + `useEffect([], ...)` to create it once.
+- Sample never calls `ZoomMtgEmbedded.destroyClient()` on unmount — memory/listener leak. nodeLive has cleanup in `useEffect` return.
+- Sample uses `document.getElementById("meetingSDKElement")!` raw DOM query — bypasses React lifecycle. nodeLive uses `useRef<HTMLDivElement>`.
+- Sample does no `res.ok` check before using the signature — crashes silently on server errors. nodeLive validates before proceeding.
+- Sample has no COOP/COEP headers in `vite.config.ts` — Zoom WASM fails in some browsers. nodeLive has both headers set.
+- Sample omits `optimizeDeps.include: ['@zoom/meetingsdk/embedded']` — Vite pre-bundling failures. nodeLive has this.
 
-**4 things the sample has that linkHQ must add before production:**
+**4 things the sample has that nodeLive must add before production:**
 
 ```typescript
 // In client.init() — add these two flags:
@@ -1968,5 +1968,5 @@ aic:read:conversation_archives:admin — AI Companion transcript access
 ---
 
 *Plan written by OfficialAbhinavSingh and Viscous106 | 2026-06-17*  
-*Repo: https://github.com/Viscous106/linkHQ*  
+*Repo: https://github.com/Viscous106/nodeLive*  
 *Do not push to this repo without credentials: OfficialAbhinavSingh / abhinav.25bcs10345@sst.scaler.com*

@@ -38,10 +38,10 @@ Web service → **Shell** tab:
 python -m scripts.seed
 ```
 Creates the instructor + 2 students + a **LIVE** session. Logins (password
-`password123`): `instructor@linkhq.dev`, `student1@linkhq.dev`, `student2@linkhq.dev`.
+`password123`): `instructor@nodelive.dev`, `student1@nodelive.dev`, `student2@nodelive.dev`.
 
 ### 5. Open + test cross-device
-Use the service URL (`https://linkhq-XXXX.onrender.com`). Log in on two devices →
+Use the service URL (`https://nodelive-XXXX.onrender.com`). Log in on two devices →
 open **"Live Now — Databases Demo"** → Join → drive polls/quiz/cue cards from one,
 watch them sync on the other.
 

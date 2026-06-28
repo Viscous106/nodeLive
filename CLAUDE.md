@@ -1,4 +1,4 @@
-# CLAUDE.md — linkHQ (root)
+# CLAUDE.md — nodeLive (root)
 
 Production educational LMS whose differentiator is a **live meeting experience**:
 the Zoom Meeting SDK (Component View) embedded alongside 11 real-time classroom

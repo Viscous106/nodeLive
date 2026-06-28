@@ -33,7 +33,7 @@ async def test_send_email_calls_smtp_when_configured():
         mock_settings.SMTP_PORT = 587
         mock_settings.SMTP_USERNAME = "user"
         mock_settings.SMTP_PASSWORD = "pass"
-        mock_settings.SMTP_FROM = "noreply@linkhq.app"
+        mock_settings.SMTP_FROM = "noreply@nodelive.app"
         with patch("smtplib.SMTP", return_value=mock_ctx):
             await send_email("stu@x.com", "Test", "body", "<p>body</p>")
             mock_instance.starttls.assert_called_once()
@@ -150,7 +150,7 @@ async def test_grade_notification_escapes_html_in_body():
         ms.SMTP_HOST = "smtp.example.com"
         ms.SMTP_PORT = 587
         ms.SMTP_USERNAME = ""
-        ms.SMTP_FROM = "noreply@linkhq.app"
+        ms.SMTP_FROM = "noreply@nodelive.app"
         with patch("app.utils.email._send_sync", side_effect=fake_sync):
             await email_mod.send_grade_notification(
                 to="s@x.com",

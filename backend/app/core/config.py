@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     )
 
     # --- App ---
-    APP_NAME: str = "linkHQ"
+    APP_NAME: str = "nodeLive"
     ENV: str = "development"
     DEBUG: bool = True
     # Path to the built frontend (set in the Docker image to serve the SPA from
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # --- Auth ---
     AUTH_SECRET: str = "dev-insecure-change-me"
     ACCESS_TOKEN_TTL_MINUTES: int = 60 * 24 * 7  # 7 days
-    COOKIE_NAME: str = "linkhq_session"
+    COOKIE_NAME: str = "nodelive_session"
     COOKIE_SECURE: bool = False  # True in production (HTTPS only)
 
     # --- Bootstrap admin (no-shell first admin on a fresh/deployed instance) ---
@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""
-    SMTP_FROM: str = "noreply@linkhq.app"
+    SMTP_FROM: str = "noreply@nodelive.app"
 
     # --- AI ---
     # Primary provider: Anthropic Claude. Fallback: Groq (OpenAI-compatible) when

@@ -13,10 +13,10 @@ already verified in CI + local smoke runs; this runbook covers the cloud half.
 
 ## 1. Provision the bucket + token (Cloudflare dashboard)
 
-1. **R2 → Create bucket** → name it e.g. `linkhq-recordings`. Note your **Account ID**.
+1. **R2 → Create bucket** → name it e.g. `nodelive-recordings`. Note your **Account ID**.
 2. **R2 → Manage R2 API Tokens → Create API Token**:
    - Permissions: **Object Read & Write**.
-   - Scope: the `linkhq-recordings` bucket.
+   - Scope: the `nodelive-recordings` bucket.
    - Save the **Access Key ID** and **Secret Access Key** (shown once).
 3. Your S3 endpoint is `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
 
@@ -29,7 +29,7 @@ ingest no-ops, so partial config degrades gracefully):
 R2_ACCOUNT_ID=<account_id>
 R2_ACCESS_KEY_ID=<access_key_id>
 R2_SECRET_ACCESS_KEY=<secret_access_key>
-R2_BUCKET=linkhq-recordings
+R2_BUCKET=nodelive-recordings
 R2_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
 RECORDING_URL_TTL_SECS=300
 ```
@@ -98,7 +98,7 @@ against your bucket (or a local MinIO). Skipped by default; run on demand:
 cd backend && source .venv/bin/activate
 RUN_STORAGE_IT=1 \
 R2_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com \
-R2_ACCESS_KEY_ID=<id> R2_SECRET_ACCESS_KEY=<secret> R2_BUCKET=linkhq-recordings \
+R2_ACCESS_KEY_ID=<id> R2_SECRET_ACCESS_KEY=<secret> R2_BUCKET=nodelive-recordings \
 pytest tests/test_recording_storage_integration.py -v
 ```
 
@@ -111,7 +111,7 @@ docker run -d --name it-minio -p 9100:9000 \
   minio/minio server /data
 RUN_STORAGE_IT=1 \
 R2_ENDPOINT_URL=http://localhost:9100 R2_ACCESS_KEY_ID=minioadmin \
-R2_SECRET_ACCESS_KEY=minioadmin R2_BUCKET=linkhq-recordings \
+R2_SECRET_ACCESS_KEY=minioadmin R2_BUCKET=nodelive-recordings \
 pytest tests/test_recording_storage_integration.py -v
 docker rm -f it-minio
 ```

@@ -37,7 +37,7 @@ async def test_seed_reconciles_legacy_email_with_different_id(session, seed_on_t
     session.add(
         User(
             id="legacy-uuid-1",
-            email="student1@linkhq.dev",
+            email="student1@nodelive.dev",
             hashed_password=hash_password("password123"),
             display_name="Legacy Student",
             role=UserRole.STUDENT,
@@ -49,10 +49,10 @@ async def test_seed_reconciles_legacy_email_with_different_id(session, seed_on_t
     await seed_on_test_db.seed()
 
     # The legacy row was reused, not duplicated.
-    assert await _email_count(session, "student1@linkhq.dev") == 1
+    assert await _email_count(session, "student1@nodelive.dev") == 1
     # And the rest of the seed completed (instructor + second student exist).
-    assert await _email_count(session, "instructor@linkhq.dev") == 1
-    assert await _email_count(session, "student2@linkhq.dev") == 1
+    assert await _email_count(session, "instructor@nodelive.dev") == 1
+    assert await _email_count(session, "student2@nodelive.dev") == 1
 
 
 async def test_seed_is_repeatable(session, seed_on_test_db):
@@ -60,8 +60,8 @@ async def test_seed_is_repeatable(session, seed_on_test_db):
     # duplicate emails).
     await seed_on_test_db.seed()
     await seed_on_test_db.seed()
-    assert await _email_count(session, "instructor@linkhq.dev") == 1
-    assert await _email_count(session, "student1@linkhq.dev") == 1
+    assert await _email_count(session, "instructor@nodelive.dev") == 1
+    assert await _email_count(session, "student1@nodelive.dev") == 1
 
 
 async def test_seed_backfills_missing_enrollments(session, seed_on_test_db):

@@ -71,7 +71,7 @@ Build the full LMS dashboard shell that replicates Scaler Academy's structure:
 5. `frontend/src/pages/LoginPage.tsx`
    ```
    Layout: centered card (480px wide), white bg, card shadow
-   Logo: "linkHQ" text (bold, primary blue)
+   Logo: "nodeLive" text (bold, primary blue)
    Form: Email input, Password input, "Login" button (primary blue, full width)
    Link: "Don't have an account? Sign up"
    Error: red banner below form on failed login
@@ -106,7 +106,7 @@ Build the full LMS dashboard shell that replicates Scaler Academy's structure:
     ```
     height: 64px, bg: white, border-bottom: 1px solid #E2E8F0
     sticky top-0 z-50
-    Left: HamburgerIcon (opens drawer) + Logo "linkHQ" shield + text
+    Left: HamburgerIcon (opens drawer) + Logo "nodeLive" shield + text
     Right: CoinCounter (gold coin icon + number) | BellIcon | UserAvatarDropdown
     UserAvatarDropdown: avatar initials circle + display name + ▼ → logout option
     ```
@@ -209,7 +209,7 @@ Build the full LMS dashboard shell that replicates Scaler Academy's structure:
       ```
       bg: linear-gradient(135deg, #1E3A8A, #312E81)
       border-radius: 8px, p-4, text-white
-      "2025 Revisited — Check out your year at linkHQ >"
+      "2025 Revisited — Check out your year at nodeLive >"
       ```
 
    b. `PerformanceWidget`:

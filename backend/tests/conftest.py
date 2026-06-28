@@ -1,6 +1,6 @@
 """Async test fixtures.
 
-Each test gets a clean schema on a dedicated Postgres database (`linkhq_test`)
+Each test gets a clean schema on a dedicated Postgres database (`nodelive_test`)
 so behavior matches production (asyncpg + real enums/constraints), not a SQLite
 approximation. Engine, sessions, and the HTTP client are all created inside the
 test's own event loop to avoid asyncpg "attached to a different loop" errors.
@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://edustream:localdev@localhost:5432/linkhq_test",
+    "postgresql+asyncpg://edustream:localdev@localhost:5432/nodelive_test",
 )
 
 

@@ -138,7 +138,7 @@ async def test_create_invitation_and_public_preview(client, session):
     p = await client.get(f"/api/invitations/{token}")
     assert p.status_code == 200
     assert p.json() == {
-        "orgName": "linkHQ",
+        "orgName": "nodeLive",
         "email": "prof@uni.edu",
         "role": "INSTRUCTOR",
     }

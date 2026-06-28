@@ -29,7 +29,7 @@ export function TopNav() {
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-white">
             <GraduationCap className="h-5 w-5" />
           </span>
-          <span className="text-lg font-bold text-text-primary">linkHQ</span>
+          <span className="text-lg font-bold text-text-primary">nodeLive</span>
         </Link>
       </div>
 

@@ -112,7 +112,7 @@ def upgrade() -> None:
     op.execute(
         sa.text(
             "INSERT INTO organizations (id, name, slug, created_at) "
-            "VALUES (:id, 'linkHQ', 'default', now())"
+            "VALUES (:id, 'nodeLive', 'default', now())"
         ).bindparams(id=_DEFAULT_ORG_ID)
     )
     op.execute(

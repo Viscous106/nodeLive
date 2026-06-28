@@ -21,7 +21,7 @@ async def test_signup_creates_user_and_sets_cookie(client):
     assert "password" not in body
     assert "hashedPassword" not in body
     # session cookie is set so the client is authenticated immediately
-    assert "linkhq_session" in resp.cookies
+    assert "nodelive_session" in resp.cookies
 
 
 async def test_signup_rejects_duplicate_email(client):
@@ -55,7 +55,7 @@ async def test_login_with_correct_password_succeeds(client):
 
     assert resp.status_code == 200
     assert resp.json()["email"] == "grace@example.com"
-    assert "linkhq_session" in resp.cookies
+    assert "nodelive_session" in resp.cookies
 
 
 async def test_login_with_wrong_password_is_401(client):
@@ -68,7 +68,7 @@ async def test_login_with_wrong_password_is_401(client):
     )
 
     assert resp.status_code == 401
-    assert "linkhq_session" not in resp.cookies
+    assert "nodelive_session" not in resp.cookies
 
 
 async def test_login_unknown_email_is_401(client):

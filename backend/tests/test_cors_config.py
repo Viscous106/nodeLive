@@ -11,9 +11,9 @@ from app.core.config import Settings
 
 
 def test_cors_origins_includes_render_external_url(monkeypatch):
-    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://linkhq.onrender.com")
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://nodelive.onrender.com")
     s = Settings()
-    assert "https://linkhq.onrender.com" in s.cors_origins
+    assert "https://nodelive.onrender.com" in s.cors_origins
 
 
 def test_cors_origins_absent_render_url(monkeypatch):
@@ -23,7 +23,7 @@ def test_cors_origins_absent_render_url(monkeypatch):
 
 
 def test_cors_origins_no_duplicate_when_already_listed(monkeypatch):
-    monkeypatch.setenv("CORS_ORIGIN", "https://linkhq.onrender.com")
-    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://linkhq.onrender.com")
+    monkeypatch.setenv("CORS_ORIGIN", "https://nodelive.onrender.com")
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://nodelive.onrender.com")
     s = Settings()
-    assert s.cors_origins.count("https://linkhq.onrender.com") == 1
+    assert s.cors_origins.count("https://nodelive.onrender.com") == 1

@@ -1,4 +1,4 @@
-# CLAUDE.md — backend (linkHQ API)
+# CLAUDE.md — backend (nodeLive API)
 
 Python 3.12 · FastAPI · python-socketio (ASGI) · SQLAlchemy 2.0 async + Alembic ·
 Celery + Redis · python-jose JWT (HttpOnly cookie) + passlib Argon2id · Anthropic.
@@ -11,7 +11,7 @@ cp .env.example .env                  # Zoom + Anthropic + R2 creds
 alembic upgrade head
 uvicorn app.main:socket_app --reload --port 8000   # socket_app, NOT app
 ruff check . && ruff format --check .  # lint gate (CI)
-pytest                                 # needs postgres up; conftest auto-creates linkhq_test
+pytest                                 # needs postgres up; conftest auto-creates nodelive_test
 ```
 Tests live in `tests/`; ruff + pytest config in `pyproject.toml`. Shell env does
 not persist between one-off commands — prefix with `source .venv/bin/activate &&`.
@@ -26,7 +26,7 @@ not persist between one-off commands — prefix with `source .venv/bin/activate 
   `download_token`, else an S2S OAuth token.
 - **Importing `app.main` doesn't open the DB** (asyncpg connects lazily); `/health`
   has no deps, `/health/ready` pings the DB.
-- **Test DB ownership**: `linkhq_test` is auto-created by `conftest` as the
+- **Test DB ownership**: `nodelive_test` is auto-created by `conftest` as the
   `DATABASE_URL` user — if it was created by a different role you get
   `permission denied for schema public`; drop it and let conftest recreate it.
 
