@@ -31,15 +31,17 @@ export type ZoomStatus = 'idle' | 'joining' | 'in-meeting' | 'error'
 
 // Our custom top bar height (LiveMeetingTopBar, h-12).
 const HEADER_H = 48
-// The Zoom Component View widget = SDK meeting-info bar (~76px) + video canvas,
-// with the control toolbar (#wc-footer) absolutely positioned at the widget's
-// bottom. If we size the video to the full container height the widget grows
-// taller than its container and the toolbar overflows below the fold — the
-// "toolbar invisible" bug. We reserve a baseline for the SDK's chrome to get
-// close on first paint, then MEASURE the real toolbar and shrink the video by
-// any remaining overflow (see settleToolbar). The measurement is what actually
-// guarantees visibility — the constant just minimizes the correction needed.
-const SDK_CHROME_BASELINE = 80
+// Zoom's Component View widget = a FIXED-height meeting-info bar (~76px) on top +
+// the video canvas + the control toolbar (#wc-footer) pinned to the widget's
+// bottom. Those two bars are fixed pixel heights regardless of screen size, so
+// the reliable way to guarantee the toolbar fits is to reserve a fixed slice for
+// them and give the video the rest — which works out to ~80-85% of the height on
+// a normal screen (big enough to not feel small, with room for the toolbar). The
+// original bug sized the video to the FULL height, so the widget grew taller than
+// its container and the toolbar overflowed off the bottom. correctToolbar() then
+// measures the real toolbar and trims the video further only if anything still
+// spills over — so even an unusually tall info-bar can't hide the controls.
+const SDK_CHROME_BASELINE = 150
 
 export function useZoomSDK(
   rootRef: React.RefObject<HTMLDivElement | null>,
