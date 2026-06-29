@@ -30,7 +30,9 @@ export default function LiveMeetingPage() {
   useSocketEvents(sessionId)
 
   const [confirmingLeave, setConfirmingLeave] = useState(false)
-  const [showPanel, setShowPanel] = useState(false)
+  // Open the side panel (Chat tab) by default so the AI chat / class tools are
+  // visible on entry; the hamburger in the top bar still toggles it.
+  const [showPanel, setShowPanel] = useState(true)
 
   const { status, errorMsg, joinMeeting, leaveMeeting } = useZoomSDK(
     rootRef,
