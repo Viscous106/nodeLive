@@ -41,7 +41,17 @@ const HEADER_H = 48
 // its container and the toolbar overflowed off the bottom. correctToolbar() then
 // measures the real toolbar and trims the video further only if anything still
 // spills over — so even an unusually tall info-bar can't hide the controls.
-const SDK_CHROME_BASELINE = 150
+const SDK_CHROME_BASELINE = 132
+
+// Convergence tuning for the bidirectional toolbar loop (see correctToolbar).
+// TARGET_GAP: desired px between the toolbar's bottom and the container's bottom
+// once settled — small, so almost no black margin, but > 0 so the toolbar is
+// provably on-screen. DEADBAND: ignore errors smaller than this to kill
+// oscillation/jitter from sub-pixel rounding and the footer's .2s transition.
+// MIN_VIDEO_H: never shrink the video below this.
+const TARGET_GAP = 6
+const DEADBAND = 3
+const MIN_VIDEO_H = 240
 
 export function useZoomSDK(
   rootRef: React.RefObject<HTMLDivElement | null>,
@@ -133,6 +143,24 @@ export function useZoomSDK(
         )
       }
 
+      // Pre-join capability probe (read-only). checkSystemRequirements() returns
+      // { audio, video, screen }: boolean. If screen capture is unsupported in
+      // this environment, surface it instead of letting remote viewers receive a
+      // silent black share frame (Issue #4). Does NOT grant entitlements.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const compat = (clientRef.current as any).checkSystemRequirements?.()
+        if (compat && compat.screen === false) {
+          console.warn(
+            '[zoom] Screen share is not supported in this environment ' +
+              '(software encode / account restriction). Remote viewers may see ' +
+              'a black frame.',
+          )
+        }
+      } catch {
+        /* probe is best-effort */
+      }
+
       await clientRef.current.init({
         debug: false,
         zoomAppRoot: root,
@@ -144,11 +172,11 @@ export function useZoomSDK(
             isResizable: false,
             popper: { disableDraggable: true, anchorPosition: { top: 0, left: 0 } },
             viewSizes: { default: initialSize, ribbon: initialSize },
-            // Show only the active speaker (instructor) rather than a gallery of
-            // all participants. SuspensionViewType is a const enum — runtime value
-            // is the string 'speaker'.
+            // Active-speaker view (single active video filling the area, no
+            // participant ribbon) instead of gallery. SuspensionViewType is a
+            // const enum — runtime value is the string 'active'.
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            defaultViewType: 'speaker' as any,
+            defaultViewType: 'active' as any,
           },
           meetingInfo: ['topic', 'host', 'mn', 'participant'],
         },
@@ -169,11 +197,11 @@ export function useZoomSDK(
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const c = clientRef.current as any
-      // Ensure speaker view is active after the meeting initialises. The
+      // Ensure active-speaker view after the meeting initialises. The
       // defaultViewType init option sets the initial view but some SDK versions
       // reset it after join(); calling setViewType explicitly guarantees it.
-      try { c.setViewType?.('speaker') } catch { /* not ready yet */ }
-      window.setTimeout(() => { try { c.setViewType?.('speaker') } catch { /* */ } }, 1500)
+      try { c.setViewType?.('active') } catch { /* not ready yet */ }
+      window.setTimeout(() => { try { c.setViewType?.('active') } catch { /* */ } }, 1500)
       c.on('user-added', refreshAttendees)
       c.on('user-removed', refreshAttendees)
       c.on('user-updated', refreshAttendees)
@@ -209,39 +237,64 @@ export function useZoomSDK(
         }
       }
 
-      // Measure the REAL toolbar. If its bottom spills past the container's
-      // bottom, shrink the video by exactly that overflow so it comes fully into
-      // view. This is self-correcting: it makes no assumption about the SDK's
-      // chrome height — it reads the actual rendered geometry and fixes it.
+      // BIDIRECTIONAL convergent corrector. Measure the gap between the REAL
+      // toolbar's bottom and the container's bottom:
+      //   gap = container.bottom - toolbar.bottom
+      // The toolbar is `position:absolute; bottom:0` of the SDK widget, and the
+      // widget's height tracks videoH plus a fixed top info-bar — so moving
+      // videoH by Δ moves the toolbar's bottom by ~Δ (loop gain ≈ 1). We steer
+      // gap toward a small positive TARGET_GAP:
+      //   - gap < 0  → toolbar overflows below the fold → shrink video.
+      //   - gap > TARGET_GAP → wasted black margin below the toolbar → grow.
+      //   - |gap - TARGET_GAP| <= DEADBAND → converged, do nothing.
+      // The grow step is capped at (gap - TARGET_GAP) so that even if the gain
+      // is under-estimated we can never push the toolbar past the bottom;
+      // shrink fully clears any overflow plus the target. Reads actual rendered
+      // geometry, so it assumes nothing about the chrome height.
       const correctToolbar = () => {
         const toolbar = findToolbar()
         if (!toolbar) return
         const cRect = container.getBoundingClientRect()
         const tRect = toolbar.getBoundingClientRect()
-        if (tRect.height === 0) return // not laid out yet
-        const overflow = tRect.bottom - cRect.bottom
-        if (overflow > 1 && videoH > 240) {
-          videoH = Math.max(videoH - overflow - 4, 240)
-          applySize()
+        if (tRect.height === 0 || cRect.height === 0) return // not laid out yet
+        const gap = cRect.bottom - tRect.bottom
+        const error = gap - TARGET_GAP // >0 too much margin, <0 overflowing
+        if (Math.abs(error) <= DEADBAND) return // converged — avoid jitter
+        const maxH = Math.max(cRect.height, MIN_VIDEO_H)
+        let next: number
+        if (error > 0) {
+          // Excess gap: grow, but never by more than the gap above the target,
+          // so the toolbar cannot cross the bottom even if the gain is < 1.
+          next = Math.min(videoH + error, maxH)
+        } else {
+          // Overflow: shrink enough to pull the toolbar fully back in and seat
+          // it at the target margin.
+          next = Math.max(videoH + error, MIN_VIDEO_H)
         }
+        if (Math.abs(next - videoH) < 1) return // no actionable change
+        videoH = next
+        applySize()
       }
 
-      // Reset to baseline for the current container size, then fire a burst of
-      // measure-and-correct passes (the SDK re-renders async, so the toolbar
-      // isn't measurable the instant we resize — we retry as it settles).
+      // Reset to a conservative baseline for the current container size (chrome
+      // slightly OVER-reserved so the very first frame never hides the toolbar),
+      // then fire a burst of measure-and-correct passes that converge UP or DOWN
+      // to TARGET_GAP. The SDK re-renders async (and the footer has a .2s
+      // transform transition), so we retry as it settles — extra late passes let
+      // the loop reach the target instead of stopping at the first non-overflow.
       const settle = () => {
         videoH = Math.max(
           (container.getBoundingClientRect().height ||
             window.innerHeight - HEADER_H) - SDK_CHROME_BASELINE,
-          240,
+          MIN_VIDEO_H,
         )
         applySize()
         // Clear any pending burst before scheduling a new one so rapid resizes
         // (e.g. window drag) don't stack timers.
         settleTimersRef.current.forEach(clearTimeout)
-        settleTimersRef.current = [120, 400, 900, 1600, 2600, 4000].map((ms) =>
-          window.setTimeout(correctToolbar, ms),
-        )
+        settleTimersRef.current = [
+          120, 350, 700, 1100, 1600, 2200, 3000, 4000,
+        ].map((ms) => window.setTimeout(correctToolbar, ms))
       }
 
       settle()
