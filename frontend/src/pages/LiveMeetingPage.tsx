@@ -28,13 +28,16 @@ export default function LiveMeetingPage() {
   useLiveState(sessionId)
   useSocket(sessionId)
   useSocketEvents(sessionId)
+
+  const [confirmingLeave, setConfirmingLeave] = useState(false)
+  const [showPanel, setShowPanel] = useState(false)
+
   const { status, errorMsg, joinMeeting, leaveMeeting } = useZoomSDK(
     rootRef,
     sessionId,
     user ?? null,
   )
 
-  const [confirmingLeave, setConfirmingLeave] = useState(false)
   const reset = useLiveClassStore((s) => s.reset)
   const tick = useLiveClassStore((s) => s.tick)
   const activeQuestion = useLiveClassStore((s) => s.activeQuestion)
@@ -76,7 +79,7 @@ export default function LiveMeetingPage() {
           </p>
           {!ended && (
             <p className="mt-1 text-sm text-white/60">
-              You’ll join automatically the moment the host starts.
+              You'll join automatically the moment the host starts.
             </p>
           )}
         </div>
@@ -90,11 +93,19 @@ export default function LiveMeetingPage() {
     )
   }
 
+  // `fixed` + explicit height is the only reliable way to prevent document-level
+  // scroll (`h-screen overflow-hidden` still scrolls because the Zoom SDK's
+  // fixed-position elements escape overflow clipping). We use `h-[100dvh]`
+  // (dynamic viewport height) rather than `inset-0` so that on mobile the bottom
+  // edge tracks the VISIBLE viewport — otherwise the Zoom control toolbar lands
+  // behind the browser's address/nav bar. On desktop 100dvh == 100vh.
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-black">
+    <div className="fixed inset-x-0 top-0 flex h-[100dvh] flex-col bg-black">
       <LiveMeetingTopBar
         session={session}
         onLeave={() => setConfirmingLeave(true)}
+        showPanel={showPanel}
+        onTogglePanel={() => setShowPanel((v) => !v)}
       />
       <div className="flex min-h-0 flex-1">
         <div className="relative flex flex-1">
@@ -108,12 +119,14 @@ export default function LiveMeetingPage() {
           />
           <CueCardOverlay />
         </div>
-        <FeaturePanel
-          sessionId={sessionId}
-          user={user}
-          isInstructor={isInstructor}
-          joinedAt={joinedAt.current}
-        />
+        {showPanel && (
+          <FeaturePanel
+            sessionId={sessionId}
+            user={user}
+            isInstructor={isInstructor}
+            joinedAt={joinedAt.current}
+          />
+        )}
       </div>
       <NoticeOverlay />
       <ConfirmDialog

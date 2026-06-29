@@ -95,15 +95,22 @@ body {
   scrollbar-width: none;
 }
 
-/* Keep Zoom's control toolbar (mic / camera / share / leave) reachable in EVERY
- * Component-View layout, Speaker included. Some layouts hide or cover the footer;
- * the embedded SDK can't recreate these buttons (no startVideo/unmute API), so the
- * native footer is the only source of them. Force it visible, on top, and
- * clickable. `useZoomSDK` reserves the footer's 52px height so it isn't clipped. */
-#zoomAppRoot .footer {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  z-index: 20 !important;
-  pointer-events: auto !important;
+/* Zoom Component View is largely a black box — we avoid restyling its internal
+ * layout (per plan.md Appendix B). Two cooperating pieces keep the control
+ * toolbar visible, and they are NOT interchangeable:
+ *
+ * 1. POSITION — useZoomSDK sizes the video to (container − SDK_CHROME_H) so the
+ *    whole widget (meeting-info bar + video + toolbar) fits inside the container.
+ *    Without this the widget overflows and the toolbar sits below the fold.
+ *
+ * 2. AUTO-HIDE — the SDK slides the toolbar off-screen
+ *    (.footer__hidden { transform: translateY(52px) }) until the user hovers the
+ *    video. For a classroom broadcast we want the controls permanently visible,
+ *    so we neutralize ONLY that hide-transform below. This is the single
+ *    SDK-internal rule we keep; it touches no layout/position — only the
+ *    show/hide animation — so it can't push anything off-screen the way the
+ *    earlier, more aggressive overrides did. It only works because (1) already
+ *    positions the toolbar on-screen. */
+#zoomAppRoot .footer__hidden {
+  transform: none !important;
 }

@@ -16,7 +16,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import * as ZoomSDK from '@zoom/meetingsdk/embedded'
-import type { SuspensionViewType } from '@zoom/meetingsdk/embedded'
 
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
@@ -30,6 +29,18 @@ type EmbeddedClient = ReturnType<typeof ZoomMtgEmbedded.createClient>
 
 export type ZoomStatus = 'idle' | 'joining' | 'in-meeting' | 'error'
 
+// Our custom top bar height (LiveMeetingTopBar, h-12).
+const HEADER_H = 48
+// The Zoom Component View widget = SDK meeting-info bar (~76px) + video canvas,
+// with the control toolbar (#wc-footer) absolutely positioned at the widget's
+// bottom. If we size the video to the full container height the widget grows
+// taller than its container and the toolbar overflows below the fold — the
+// "toolbar invisible" bug. We reserve a baseline for the SDK's chrome to get
+// close on first paint, then MEASURE the real toolbar and shrink the video by
+// any remaining overflow (see settleToolbar). The measurement is what actually
+// guarantees visibility — the constant just minimizes the correction needed.
+const SDK_CHROME_BASELINE = 80
+
 export function useZoomSDK(
   rootRef: React.RefObject<HTMLDivElement | null>,
   sessionId: string,
@@ -37,6 +48,8 @@ export function useZoomSDK(
 ) {
   const clientRef = useRef<EmbeddedClient | null>(null)
   const resizeObsRef = useRef<ResizeObserver | null>(null)
+  const resizeListenerRef = useRef<(() => void) | null>(null)
+  const settleTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
   const [status, setStatus] = useState<ZoomStatus>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const setAttendeeCount = useLiveClassStore((s) => s.setAttendeeCount)
@@ -45,8 +58,14 @@ export function useZoomSDK(
     const client = ZoomMtgEmbedded.createClient()
     clientRef.current = client
     return () => {
+      settleTimersRef.current.forEach(clearTimeout)
+      settleTimersRef.current = []
       resizeObsRef.current?.disconnect()
       resizeObsRef.current = null
+      if (resizeListenerRef.current) {
+        window.removeEventListener('resize', resizeListenerRef.current)
+        resizeListenerRef.current = null
+      }
       try {
         ZoomMtgEmbedded.destroyClient()
       } catch {
@@ -70,7 +89,6 @@ export function useZoomSDK(
     if (!clientRef.current || !rootRef.current || !user) return
     setStatus('joining')
     setErrorMsg('')
-    // Known Zoom SDK error codes → friendly messages
     const ZOOM_ERROR_MESSAGES: Record<string, string> = {
       '3707': 'Meeting not found — the meeting ID may be invalid or the meeting has ended.',
       '3011': 'Incorrect meeting password.',
@@ -84,27 +102,34 @@ export function useZoomSDK(
       const { signature, sdkKey, zoomMeetingId, password, zak } =
         await api.post<ZoomJoin>(`/api/sessions/${sessionId}/join`)
 
-      // Size the Zoom view to the actual panel. The Component View renders a
-      // FIXED-pixel suspension window — it never reflows itself — so we measure
-      // the panel now and keep it in sync with a ResizeObserver (below). Without
-      // that, any viewport change after join (e.g. opening DevTools, resizing)
-      // leaves the window at its old, oversized height and it overflows the
-      // panel, forcing a scroll to reach the toolbar.
       const root = rootRef.current
-      // Zoom renders its control toolbar (mic / camera / share / leave) BELOW the
-      // video area. If we size the video to the full panel height, video+toolbar
-      // overflows the panel bottom and the toolbar is clipped (the page is
-      // overflow-hidden) — making the controls unreachable. Reserve the toolbar's
-      // height so it lands inside the panel.
-      const TOOLBAR_H = 56
-      const panelSize = () => ({
-        width: Math.max(Math.floor(root.getBoundingClientRect().width), 320),
-        height: Math.max(
-          Math.floor(root.getBoundingClientRect().height) - TOOLBAR_H,
-          240,
-        ),
-      })
-      const initialSize = panelSize()
+      // Initial size: window dimensions are reliable before the SDK mutates the
+      // DOM. Reserve the header + SDK chrome so the widget (and its control
+      // toolbar) fits inside the container from the first frame.
+      const container = root.parentElement ?? root
+      const initialSize = {
+        width: Math.max(window.innerWidth, 320),
+        height: Math.max(window.innerHeight - HEADER_H - SDK_CHROME_BASELINE, 240),
+      }
+      // Locate the SDK's bottom control toolbar (mic/camera/share/chat/leave).
+      // Confirmed selector in SDK v6.1: <footer id="wc-footer"> with class
+      // "footer main-footer". Fall back to walking up from a known control button
+      // so a class rename can't silently break the measurement.
+      const findToolbar = (): HTMLElement | null => {
+        const r = rootRef.current
+        if (!r) return null
+        return (
+          r.querySelector<HTMLElement>('#wc-footer') ??
+          r.querySelector<HTMLElement>('.footer.main-footer') ??
+          r.querySelector<HTMLElement>('.footer') ??
+          r
+            .querySelector<HTMLElement>(
+              '.join-audio-container__btn, .send-video-container__btn',
+            )
+            ?.closest<HTMLElement>('footer, [class*="footer"]') ??
+          null
+        )
+      }
 
       await clientRef.current.init({
         debug: false,
@@ -114,16 +139,14 @@ export function useZoomSDK(
         leaveOnPageUnload: true,
         customize: {
           video: {
-            isResizable: true,
-            // Default to Speaker view (large active speaker). The control toolbar
-            // (mic / camera / share / leave) is kept reachable by (a) reserving
-            // the footer's height in panelSize so it isn't clipped, and (b) a CSS
-            // rule (globals.css) that forces Zoom's `.footer` visible in every
-            // layout. Anchor top-left + non-draggable so the window fills the
-            // panel instead of floating at a fixed offset.
-            defaultViewType: 'speaker' as SuspensionViewType,
+            isResizable: false,
             popper: { disableDraggable: true, anchorPosition: { top: 0, left: 0 } },
             viewSizes: { default: initialSize, ribbon: initialSize },
+            // Show only the active speaker (instructor) rather than a gallery of
+            // all participants. SuspensionViewType is a const enum — runtime value
+            // is the string 'speaker'.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            defaultViewType: 'speaker' as any,
           },
           meetingInfo: ['topic', 'host', 'mn', 'participant'],
         },
@@ -137,13 +160,18 @@ export function useZoomSDK(
         userName: user.displayName,
         userEmail: user.email,
         customerKey: user.id.slice(0, 35),
-        zak: zak ?? '', // host token → instructor can START the meeting
+        zak: zak ?? '',
       })
 
       setStatus('in-meeting')
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const c = clientRef.current as any
+      // Ensure speaker view is active after the meeting initialises. The
+      // defaultViewType init option sets the initial view but some SDK versions
+      // reset it after join(); calling setViewType explicitly guarantees it.
+      try { c.setViewType?.('speaker') } catch { /* not ready yet */ }
+      window.setTimeout(() => { try { c.setViewType?.('speaker') } catch { /* */ } }, 1500)
       c.on('user-added', refreshAttendees)
       c.on('user-removed', refreshAttendees)
       c.on('user-updated', refreshAttendees)
@@ -157,53 +185,86 @@ export function useZoomSDK(
         }
       })
 
-      // Default to Speaker view. Zoom can remember a prior view, so re-assert it
-      // once connected plus a few delayed retries (the view isn't ready the
-      // instant join() resolves). After these initial retries the user is free to
-      // switch layouts — the footer stays visible in all of them.
-      const forceSpeaker = () => {
-        try {
-          const r = c.setViewType?.('speaker')
-          if (r && typeof r.catch === 'function') r.catch(() => {})
-        } catch {
-          /* view not ready yet — a retry will catch it */
-        }
-      }
-      // Keep the fixed-size Zoom window matched to the panel. The Component View
-      // doesn't reflow on its own, so re-apply viewSizes whenever the panel
-      // changes size — this is what stops the window overflowing and forcing a
-      // scroll to reach the toolbar.
+      // `videoH` is the height we ask the SDK to render the video at. It starts
+      // from the container height minus a baseline chrome reserve, then
+      // correctToolbar() trims it further if the real toolbar still overflows.
+      let videoH = Math.max(
+        (container.getBoundingClientRect().height ||
+          window.innerHeight - HEADER_H) - SDK_CHROME_BASELINE,
+        240,
+      )
+
+      // Push the current width + videoH to the SDK. Width tracks the container
+      // so the video shrinks when the side panel opens.
       const applySize = () => {
-        const sz = panelSize()
+        const rect = container.getBoundingClientRect()
+        const w = Math.max(rect.width > 0 ? rect.width : window.innerWidth, 320)
+        const sz = { width: w, height: Math.max(videoH, 240) }
         try {
           c.updateVideoOptions?.({ viewSizes: { default: sz, ribbon: sz } })
         } catch {
           /* not ready yet */
         }
       }
-      c.on('connection-change', (p: { state?: string }) => {
-        if (p?.state === 'Connected') {
-          forceSpeaker()
+
+      // Measure the REAL toolbar. If its bottom spills past the container's
+      // bottom, shrink the video by exactly that overflow so it comes fully into
+      // view. This is self-correcting: it makes no assumption about the SDK's
+      // chrome height — it reads the actual rendered geometry and fixes it.
+      const correctToolbar = () => {
+        const toolbar = findToolbar()
+        if (!toolbar) return
+        const cRect = container.getBoundingClientRect()
+        const tRect = toolbar.getBoundingClientRect()
+        if (tRect.height === 0) return // not laid out yet
+        const overflow = tRect.bottom - cRect.bottom
+        if (overflow > 1 && videoH > 240) {
+          videoH = Math.max(videoH - overflow - 4, 240)
           applySize()
         }
-      })
-      forceSpeaker()
-      ;[400, 1200, 2500, 4000].forEach((ms) =>
-        window.setTimeout(() => {
-          forceSpeaker()
-          applySize()
-        }, ms),
-      )
+      }
 
+      // Reset to baseline for the current container size, then fire a burst of
+      // measure-and-correct passes (the SDK re-renders async, so the toolbar
+      // isn't measurable the instant we resize — we retry as it settles).
+      const settle = () => {
+        videoH = Math.max(
+          (container.getBoundingClientRect().height ||
+            window.innerHeight - HEADER_H) - SDK_CHROME_BASELINE,
+          240,
+        )
+        applySize()
+        // Clear any pending burst before scheduling a new one so rapid resizes
+        // (e.g. window drag) don't stack timers.
+        settleTimersRef.current.forEach(clearTimeout)
+        settleTimersRef.current = [120, 400, 900, 1600, 2600, 4000].map((ms) =>
+          window.setTimeout(correctToolbar, ms),
+        )
+      }
+
+      settle()
+      c.on('connection-change', (p: { state?: string }) => {
+        if (p?.state === 'Connected') settle()
+      })
+
+      // Re-settle when the container resizes (side panel open/close) or the
+      // window resizes. The observer watches OUR flex container, whose size is
+      // driven by layout — not by the SDK widget — so updateVideoOptions can't
+      // feed back into it and loop.
       resizeObsRef.current?.disconnect()
-      resizeObsRef.current = new ResizeObserver(() => applySize())
-      resizeObsRef.current.observe(root)
+      resizeObsRef.current = new ResizeObserver(() => settle())
+      resizeObsRef.current.observe(container)
+
+      if (resizeListenerRef.current) {
+        window.removeEventListener('resize', resizeListenerRef.current)
+      }
+      resizeListenerRef.current = settle
+      window.addEventListener('resize', settle)
 
       refreshAttendees()
     } catch (err: unknown) {
       let msg: string
       if (err instanceof Error && 'status' in err) {
-        // ApiError from the server
         const httpStatus = (err as { status: number }).status
         if (httpStatus === 409) {
           msg = 'No Zoom meeting has been configured for this session.'
@@ -229,8 +290,14 @@ export function useZoomSDK(
   }, [rootRef, sessionId, user, refreshAttendees])
 
   const leaveMeeting = useCallback(async () => {
+    settleTimersRef.current.forEach(clearTimeout)
+    settleTimersRef.current = []
     resizeObsRef.current?.disconnect()
     resizeObsRef.current = null
+    if (resizeListenerRef.current) {
+      window.removeEventListener('resize', resizeListenerRef.current)
+      resizeListenerRef.current = null
+    }
     try {
       await clientRef.current?.leaveMeeting()
     } catch {

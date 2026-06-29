@@ -13,16 +13,6 @@ interface Props {
   canStart?: boolean
 }
 
-/**
- * Hosts the Zoom Component View. The SDK renders into `rootRef`; an overlay
- * covers it until the user is in the meeting. A join failure (e.g. no real Zoom
- * creds locally) shows an error with retry — the rest of the page still works,
- * since the feature panel is socket-driven and independent of the video.
- *
- * When there's no Zoom meeting yet, the HOST still gets a Start button — their
- * join auto-creates the meeting server-side (S2S). Non-hosts see an info state
- * (not an error → no retry) until the host starts it.
- */
 export function ZoomPanel({
   rootRef,
   status,
@@ -32,7 +22,7 @@ export function ZoomPanel({
   canStart = false,
 }: Props) {
   return (
-    <div className="relative flex-1 overflow-y-auto bg-black">
+    <div className="relative flex-1 overflow-hidden bg-black">
       <div ref={rootRef} id="zoomAppRoot" className="h-full w-full" />
 
       {status !== 'in-meeting' && (
@@ -52,7 +42,7 @@ export function ZoomPanel({
           ) : status === 'error' ? (
             <div className="flex max-w-md flex-col items-center gap-3">
               <AlertCircle className="text-red-500" size={32} />
-              <p className="text-sm font-medium">Couldn’t join the Zoom meeting</p>
+              <p className="text-sm font-medium">Couldn't join the Zoom meeting</p>
               <p className="text-xs break-words text-white/60">{errorMsg}</p>
               <Button variant="outline" size="sm" onClick={onJoin}>
                 Try again

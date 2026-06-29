@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # CLAUDE.md — nodeLive (root)
 
 Production educational LMS whose differentiator is a **live meeting experience**:
@@ -15,6 +19,33 @@ React 19 + TS + Vite 8, Tailwind 4 + shadcn · Zustand + TanStack Query +
 socket.io · Zoom Meeting SDK v6.1 · Python 3.12 + FastAPI + python-socketio ·
 Postgres 16 + SQLAlchemy 2.0 (async) + Alembic · Celery + Redis · HS256 JWT in
 HttpOnly cookie (Argon2id) · Anthropic Claude (`claude-sonnet-4-6`).
+
+## Commands
+
+Start local infrastructure first (required for both backend tests and dev):
+```bash
+docker compose up -d postgres redis
+```
+
+**Backend** (from `backend/`):
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env                                        # fill in Zoom + Anthropic + R2 creds
+alembic upgrade head
+python -m app.scripts.seed                                  # seed demo data (idempotent)
+uvicorn app.main:socket_app --reload --port 8000            # socket_app, NOT app
+ruff check . && ruff format --check .                       # lint gate (CI)
+pytest                                                      # full suite
+pytest tests/test_auth.py -k test_login                    # single test / filter
+```
+
+**Frontend** (from `frontend/`):
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # tsc -b && vite build — this is also the typecheck gate (CI)
+```
 
 ## Core architecture: the three-layer attendance truth model
 Compliance comes from three sources at deliberately different trust levels:
@@ -36,17 +67,31 @@ them). The shared primitive is `backend/app/utils/intervals.py` — credit = the
 can't fake completion. Used by BOTH attendance and watch-tracking — never
 duplicate it.
 
-## Commands
-```bash
-docker compose up -d postgres redis     # local infra (needed for tests + dev)
-```
-Per-app commands live in the nested CLAUDE.md. The two CI gates:
-`ruff check . && pytest` (backend) · `npm run build` (frontend — also the typecheck).
+## Cross-cutting concerns
+
+**Identity bridge:** `customerKey = user.id[:35]` is set at SDK join time, flows
+through Zoom webhooks as `participant.customer_key`, and surfaces in the Reports
+API — this is how attendance attributes to a real user. Email is the fallback
+match key (customer_key absent for guests). This link is in both the backend
+auth dependency and `useZoomSDK.ts`.
+
+**LLM provider:** `backend/app/utils/llm.py` is Anthropic-primary with automatic
+Groq fallback (OpenAI SSE protocol over httpx, no SDK). Falls back when
+`ANTHROPIC_API_KEY` is unset or an Anthropic call fails before emitting output.
+AI features return 501 only when neither key is configured.
+
+**Real-time state split:** live class state (polls, quiz, cue cards, notices,
+leaderboard) lives in Zustand (`liveClassStore`) fed by socket events. Everything
+else (sessions, recordings, admin data) is TanStack Query. Don't mix them.
 
 ## Global gotchas
 - **Serve `app.main:socket_app`, not `app`** — or WebSockets 404.
 - **COOP/COEP headers are required for the Zoom SDK** — `vite.config.ts` in dev,
   the backend `cross_origin_isolation` middleware in the bundled deploy.
+- **Webhook HMAC must be verified over raw bytes** — parsing JSON first changes
+  the bytes and silently breaks signature verification.
+- **Shell env doesn't persist between commands** — always prefix with
+  `source .venv/bin/activate &&` when running backend commands one-off.
 
 ## Conventions
 - Conventional Commits (`feat:`/`fix:`/`chore:`/`docs:`); signed, under each dev's
