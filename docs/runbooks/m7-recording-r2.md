@@ -51,7 +51,7 @@ dev + prod origins):
   {
     "AllowedOrigins": [
       "http://localhost:5173",
-      "https://app.your-domain.com"
+      "https://nodelive-twbw.onrender.com"
     ],
     "AllowedMethods": ["GET", "HEAD", "PUT"],
     "AllowedHeaders": ["Range", "Content-Type"],

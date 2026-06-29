@@ -4,7 +4,7 @@ _Living status doc. Update before ending a long session; read it to resume._
 _Last updated: 2026-06-22._
 
 ## Deployment
-- **Live:** https://nodelive.onrender.com (Render free tier — sleeps when idle,
+- **Live:** https://nodelive-twbw.onrender.com (Render free tier — sleeps when idle,
   first request wakes it ~30–60s; OOMs past ~15 concurrent users).
 - Builds `main` via Docker; auto-deploys on push. `start.sh`: alembic → seed (bg)
   → Celery beat + worker (`solo` pool) → uvicorn `app.main:socket_app`.

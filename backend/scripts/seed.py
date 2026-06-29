@@ -111,6 +111,22 @@ async def seed() -> None:
             if instructor.role is not UserRole.ADMIN:
                 await assign_role(db, instructor, UserRole.ADMIN)
                 await db.commit()
+            # Ensure personal admin account exists on re-deploys.
+            yash = await db.scalar(
+                select(User).where(User.email == "yash.virulkar@scaler.com")
+            )
+            if yash is None:
+                yash = User(
+                    id="seed-admin-yash",
+                    email="yash.virulkar@scaler.com",
+                    hashed_password=hash_password(_PASSWORD),
+                    display_name="Yash Virulkar",
+                    role=UserRole.ADMIN,
+                )
+                db.add(yash)
+                await db.flush()
+                await assign_role(db, yash, UserRole.ADMIN)
+                await db.commit()
             await _ensure_live_session(db)
             await _ensure_demo_recordings(db)
             await _ensure_all_enrollments(db)
@@ -142,6 +158,19 @@ async def seed() -> None:
                 db.add(s)
             students.append(s)
 
+        yash = await db.scalar(
+            select(User).where(User.email == "yash.virulkar@scaler.com")
+        )
+        if yash is None:
+            yash = User(
+                id="seed-admin-yash",
+                email="yash.virulkar@scaler.com",
+                hashed_password=hash_password(_PASSWORD),
+                display_name="Yash Virulkar",
+                role=UserRole.ADMIN,
+            )
+            db.add(yash)
+
         # --- course ----------------------------------------------------------
         if course is None:
             course = Course(id=_COURSE_ID, title="Databases")
@@ -153,6 +182,7 @@ async def seed() -> None:
         # the admin dashboard has someone to log in as (writes membership +
         # the User.role mirror together).
         await assign_role(db, instructor, UserRole.ADMIN)
+        await assign_role(db, yash, UserRole.ADMIN)
         for s in students:
             await get_or_create_membership(db, s)
 
