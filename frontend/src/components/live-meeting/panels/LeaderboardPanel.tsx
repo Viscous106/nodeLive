@@ -10,7 +10,7 @@ export function LeaderboardPanel({ userId }: { userId: string | undefined }) {
     <div className="space-y-2 p-4">
       <p className="text-sm text-white/60">Your score: {myScore}</p>
       {leaderboard.length === 0 ? (
-        <p className="pt-6 text-center text-sm text-white/50">
+        <p className="pt-4 text-center text-sm text-white/50">
           No points yet — answer a quiz or poll.
         </p>
       ) : (
@@ -21,11 +21,11 @@ export function LeaderboardPanel({ userId }: { userId: string | undefined }) {
               row.userId === userId ? 'bg-primary/20 text-white' : 'bg-white/5 text-white/80'
             }`}
           >
-            <span className="flex items-center gap-2">
-              <span className="w-6 text-center">{MEDALS[i] ?? `#${i + 1}`}</span>
-              {row.displayName}
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="w-6 shrink-0 text-center">{MEDALS[i] ?? `#${i + 1}`}</span>
+              <span className="truncate">{row.displayName}</span>
             </span>
-            <span className="font-semibold">{row.points}</span>
+            <span className="shrink-0 pl-2 font-semibold">{row.points}</span>
           </div>
         ))
       )}

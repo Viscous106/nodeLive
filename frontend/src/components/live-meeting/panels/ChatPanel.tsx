@@ -8,6 +8,7 @@ import { useAiStream } from '@/hooks/useAiStream'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 import { useLiveClassStore } from '@/stores/liveClassStore'
+import { toast } from '@/stores/toastStore'
 import type { User } from '@/types'
 
 interface Props {
@@ -24,7 +25,7 @@ export function ChatPanel({ sessionId, user, isInstructor }: Props) {
       {pinnedMessage && (
         <div className="flex items-start gap-2 border-b border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
           <Pin size={14} className="mt-0.5 shrink-0" />
-          <span>{pinnedMessage}</span>
+          <span className="min-w-0 break-words">{pinnedMessage}</span>
         </div>
       )}
 
@@ -78,8 +79,9 @@ function AiChat({ sessionId }: { sessionId: string }) {
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
           placeholder="Ask the AI…"
+          aria-label="Ask the AI a question about this lecture"
           disabled={isStreaming}
-          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
         />
         <Button size="sm" onClick={ask} disabled={isStreaming}>
           Ask
@@ -100,6 +102,12 @@ function StudentRaiseHand({
 
   const toggle = () => {
     const socket = getSocket()
+    // Don't flip the button optimistically if the socket is down — otherwise it
+    // would show "Lower hand" while the instructor never received the raise.
+    if (!socket.connected) {
+      toast({ variant: 'error', title: 'Not connected — try again' })
+      return
+    }
     if (raised) {
       socket.emit('raise_hand_down', { sessionId })
     } else {
@@ -125,25 +133,51 @@ function StudentRaiseHand({
 function InstructorChatControls({ sessionId }: { sessionId: string }) {
   const [pin, setPin] = useState('')
   const [cue, setCue] = useState('')
+  const [pinPending, setPinPending] = useState(false)
+  const [cuePending, setCuePending] = useState(false)
 
   const setPinned = async () => {
     if (!pin.trim()) return
-    await api.put(`/api/sessions/${sessionId}/live/pinned-message`, {
-      message: pin.trim(),
-    })
-    setPin('')
+    setPinPending(true)
+    try {
+      await api.put(`/api/sessions/${sessionId}/live/pinned-message`, {
+        message: pin.trim(),
+      })
+      setPin('')
+    } catch {
+      toast({ variant: 'error', title: 'Could not pin message' })
+    } finally {
+      setPinPending(false)
+    }
   }
-  const unpin = () => api.delete(`/api/sessions/${sessionId}/live/pinned-message`)
+
+  const unpin = async () => {
+    setPinPending(true)
+    try {
+      await api.delete(`/api/sessions/${sessionId}/live/pinned-message`)
+    } catch {
+      toast({ variant: 'error', title: 'Could not unpin message' })
+    } finally {
+      setPinPending(false)
+    }
+  }
 
   // Create + immediately show a cue card (broadcasts cuecard:shown).
   const showCue = async () => {
     if (!cue.trim()) return
-    const card = await api.post<{ id: string }>(
-      `/api/sessions/${sessionId}/live/cue-cards`,
-      { content: cue.trim(), displayOrder: 0 },
-    )
-    await api.patch(`/api/sessions/${sessionId}/live/cue-cards/${card.id}/show`)
-    setCue('')
+    setCuePending(true)
+    try {
+      const card = await api.post<{ id: string }>(
+        `/api/sessions/${sessionId}/live/cue-cards`,
+        { content: cue.trim(), displayOrder: 0 },
+      )
+      await api.patch(`/api/sessions/${sessionId}/live/cue-cards/${card.id}/show`)
+      setCue('')
+    } catch {
+      toast({ variant: 'error', title: 'Could not show cue card' })
+    } finally {
+      setCuePending(false)
+    }
   }
 
   return (
@@ -153,12 +187,13 @@ function InstructorChatControls({ sessionId }: { sessionId: string }) {
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="Pin a message…"
-          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
+          aria-label="Pin a message for everyone"
+          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
-        <Button size="sm" onClick={setPinned}>
+        <Button size="sm" onClick={setPinned} disabled={pinPending}>
           Pin
         </Button>
-        <Button variant="ghost" size="sm" onClick={unpin}>
+        <Button variant="ghost" size="sm" onClick={unpin} disabled={pinPending}>
           Unpin
         </Button>
       </div>
@@ -167,9 +202,10 @@ function InstructorChatControls({ sessionId }: { sessionId: string }) {
           value={cue}
           onChange={(e) => setCue(e.target.value)}
           placeholder="Show a cue card…"
-          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
+          aria-label="Show a cue card over the video"
+          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
-        <Button size="sm" onClick={showCue}>
+        <Button size="sm" onClick={showCue} disabled={cuePending}>
           Show
         </Button>
       </div>

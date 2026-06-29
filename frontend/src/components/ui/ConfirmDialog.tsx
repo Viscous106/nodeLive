@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 import { Button } from '@/components/ui/button'
 
 interface Props {
@@ -17,6 +19,15 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onCancel])
+
   if (!open) return null
   return (
     <div
@@ -24,13 +35,18 @@ export function ConfirmDialog({
       onClick={onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
         className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <h2 id="confirm-dialog-title" className="text-lg font-semibold text-gray-900">
+          {title}
+        </h2>
         {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onCancel}>
+          <Button variant="outline" size="sm" onClick={onCancel} autoFocus>
             Cancel
           </Button>
           <Button variant="danger" size="sm" onClick={onConfirm}>

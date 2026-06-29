@@ -9,6 +9,7 @@ import { CueCardOverlay } from '@/components/live-meeting/overlays/CueCardOverla
 import { NoticeOverlay } from '@/components/live-meeting/overlays/NoticeOverlay'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageLoader } from '@/components/ui/PageLoader'
+import { Spinner } from '@/components/ui/spinner'
 import { useAuth } from '@/hooks/useAuth'
 import { useLiveState } from '@/hooks/useLiveState'
 import { useSession } from '@/hooks/useSession'
@@ -70,9 +71,7 @@ export default function LiveMeetingPage() {
     const ended = session.status === 'ENDED' || session.status === 'CANCELLED'
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#1A1A2E] text-white">
-        {!ended && (
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-        )}
+        {!ended && <Spinner className="h-10 w-10 text-white" />}
         <div className="text-center">
           <p className="text-lg font-semibold">
             {ended
@@ -87,7 +86,7 @@ export default function LiveMeetingPage() {
         </div>
         <button
           onClick={() => navigate('/dashboard')}
-          className="text-sm text-primary-light hover:underline"
+          className="rounded text-sm text-primary-light hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           Back to dashboard
         </button>

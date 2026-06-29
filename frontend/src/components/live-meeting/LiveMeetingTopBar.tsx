@@ -29,12 +29,12 @@ export function LiveMeetingTopBar({ session, onLeave, showPanel, onTogglePanel }
         </span>
       </div>
 
-      <div className="flex items-center gap-3">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-red-400">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+      <div className="flex shrink-0 items-center gap-3">
+        <span className="flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-danger">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-danger" />
           LIVE
         </span>
-        <span className="text-sm text-white/70">Attendees: {attendeeCount}</span>
+        <span className="whitespace-nowrap text-sm text-white/70">Attendees: {attendeeCount}</span>
         <button
           onClick={onTogglePanel}
           className={`rounded p-1.5 hover:bg-white/10 ${showPanel ? 'text-white' : 'text-white/50'}`}
