@@ -79,7 +79,7 @@ function AiChat({ sessionId }: { sessionId: string }) {
           onKeyDown={(e) => e.key === 'Enter' && ask()}
           placeholder="Ask the AI…"
           disabled={isStreaming}
-          className="flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 disabled:opacity-50"
         />
         <Button size="sm" onClick={ask} disabled={isStreaming}>
           Ask
@@ -153,7 +153,7 @@ function InstructorChatControls({ sessionId }: { sessionId: string }) {
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="Pin a message…"
-          className="flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
+          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
         />
         <Button size="sm" onClick={setPinned}>
           Pin
@@ -167,7 +167,7 @@ function InstructorChatControls({ sessionId }: { sessionId: string }) {
           value={cue}
           onChange={(e) => setCue(e.target.value)}
           placeholder="Show a cue card…"
-          className="flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
+          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
         />
         <Button size="sm" onClick={showCue}>
           Show
