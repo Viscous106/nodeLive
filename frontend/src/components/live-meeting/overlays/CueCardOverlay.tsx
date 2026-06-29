@@ -20,11 +20,11 @@ export function CueCardOverlay() {
   if (!card || !visible) return null
 
   return (
-    <div className="absolute bottom-6 left-6 z-20 max-w-sm rounded-xl bg-white p-4 shadow-2xl">
-      <p className="text-base leading-relaxed text-gray-900">{card.content}</p>
+    <div className="absolute bottom-6 left-6 z-20 max-w-[min(24rem,calc(100%-3rem))] rounded-xl bg-white p-4 shadow-2xl">
+      <p className="text-base leading-relaxed break-words text-gray-900">{card.content}</p>
       <button
         onClick={() => setVisible(false)}
-        className="mt-2 text-xs font-medium text-gray-400 hover:text-gray-600"
+        className="mt-2 rounded text-xs font-medium text-gray-600 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         Dismiss
       </button>

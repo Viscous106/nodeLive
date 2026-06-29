@@ -34,7 +34,8 @@ export function BookmarkPanel({ sessionId, joinedAt }: { sessionId: string; join
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Label (optional)"
-          className="flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
+          aria-label="Bookmark label"
+          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
         <Button size="sm" onClick={add}>
           Mark
@@ -50,8 +51,8 @@ export function BookmarkPanel({ sessionId, joinedAt }: { sessionId: string; join
               className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-white/80"
             >
               <BookmarkIcon size={14} className="text-primary-light" />
-              <span className="flex-1 truncate">{b.label ?? 'Bookmark'}</span>
-              <span className="text-white/40">{formatMs(b.timestampMs)}</span>
+              <span className="min-w-0 flex-1 truncate">{b.label ?? 'Bookmark'}</span>
+              <span className="shrink-0 text-white/40">{formatMs(b.timestampMs)}</span>
             </div>
           ))
         )}

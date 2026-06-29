@@ -41,14 +41,18 @@ export function FeaturePanel({ sessionId, user, isInstructor, joinedAt }: Props)
 
   return (
     <aside className="flex w-[360px] shrink-0 flex-col bg-[#1A1A2E] text-white">
-      <nav className="flex border-b border-white/10">
+      <nav role="tablist" aria-label="Class tools" className="flex border-b border-white/10">
         {TABS.map(({ id, icon: Icon, label }) => (
           <button
             key={id}
+            role="tab"
+            aria-selected={tab === id}
             onClick={() => setTab(id)}
             className={cn(
-              'flex flex-1 flex-col items-center gap-1 py-2 text-[11px]',
-              tab === id ? 'text-primary-light' : 'text-white/50 hover:text-white/80',
+              'flex flex-1 flex-col items-center gap-1 border-b-2 py-2 text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40',
+              tab === id
+                ? 'border-primary-light text-primary-light'
+                : 'border-transparent text-white/50 hover:text-white/80',
             )}
           >
             <Icon size={18} />
