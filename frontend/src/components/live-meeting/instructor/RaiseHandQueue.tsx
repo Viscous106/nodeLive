@@ -26,8 +26,13 @@ export function RaiseHandQueue({ sessionId }: { sessionId: string }) {
           key={h.userId}
           className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-1.5 text-sm text-white/80"
         >
-          <span className="truncate">{h.name ?? h.userId}</span>
-          <Button variant="ghost" size="sm" onClick={() => callOn(h.userId)}>
+          <span className="min-w-0 truncate">{h.name ?? h.userId}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0"
+            onClick={() => callOn(h.userId)}
+          >
             Call on
           </Button>
         </div>

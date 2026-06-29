@@ -36,6 +36,8 @@ export function QuizPanel({ sessionId, isInstructor }: Props) {
         selectedIndex,
       })
     } catch {
+      // Release the optimistic lock so the student can retry this question.
+      setAnsweredId(null)
       toast({ variant: 'error', title: 'Could not submit answer' })
     }
   }
@@ -46,20 +48,20 @@ export function QuizPanel({ sessionId, isInstructor }: Props) {
         <span>Question {question.index + 1}</span>
         <span>{timeLeft}s</span>
       </div>
-      <p className="font-semibold text-white">{question.text}</p>
+      <p className="font-semibold break-words text-white">{question.text}</p>
       {question.options.map((opt, i) => (
         <button
           key={i}
           onClick={() => answer(i)}
           disabled={answered}
-          className="w-full rounded-lg bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          className="w-full break-words rounded-lg bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
         >
           {opt}
         </button>
       ))}
       {answered && lastScore && (
         <p
-          className={`text-sm font-medium ${lastScore.correct ? 'text-green-400' : 'text-red-400'}`}
+          className={`text-sm font-medium ${lastScore.correct ? 'text-success' : 'text-danger'}`}
         >
           {lastScore.correct ? `Correct! +${lastScore.points}` : 'Incorrect'}
         </p>
@@ -84,6 +86,7 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
     { text: '', options: ['', ''], correctIndex: 0 },
   ])
   const [createdQuizId, setCreatedQuizId] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
 
   const addQuestion = () =>
     setQuestions((q) => [...q, { text: '', options: ['', ''], correctIndex: 0 }])
@@ -107,17 +110,30 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
       toast({ variant: 'error', title: 'Add a title and a complete question' })
       return
     }
-    const created = await api.post<{ id: string }>(
-      `/api/sessions/${sessionId}/live/quiz`,
-      payload,
-    )
-    setCreatedQuizId(created.id)
-    toast({ variant: 'success', title: 'Quiz created — launch when ready' })
+    setPending(true)
+    try {
+      const created = await api.post<{ id: string }>(
+        `/api/sessions/${sessionId}/live/quiz`,
+        payload,
+      )
+      setCreatedQuizId(created.id)
+      toast({ variant: 'success', title: 'Quiz created — launch when ready' })
+    } catch {
+      toast({ variant: 'error', title: 'Could not create quiz' })
+    } finally {
+      setPending(false)
+    }
   }
 
   const launch = async () => {
-    if (createdQuizId) {
+    if (!createdQuizId) return
+    setPending(true)
+    try {
       await api.post(`/api/sessions/${sessionId}/live/quiz/${createdQuizId}/launch`)
+    } catch {
+      toast({ variant: 'error', title: 'Could not launch quiz' })
+    } finally {
+      setPending(false)
     }
   }
 
@@ -139,7 +155,8 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Quiz title"
-        className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
+        aria-label="Quiz title"
+        className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       />
       {questions.map((q, qi) => (
         <div key={qi} className="space-y-2 rounded-lg bg-white/5 p-2">
@@ -147,7 +164,8 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
             value={q.text}
             onChange={(e) => update(qi, { text: e.target.value })}
             placeholder={`Question ${qi + 1}`}
-            className="w-full rounded-md bg-white/10 px-2 py-1.5 text-sm text-white placeholder:text-white/40"
+            aria-label={`Question ${qi + 1}`}
+            className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           {q.options.map((opt, oi) => (
             <label key={oi} className="flex items-center gap-2">
@@ -164,7 +182,8 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
                   })
                 }
                 placeholder={`Option ${oi + 1}`}
-                className="w-full rounded bg-white/10 px-2 py-1 text-sm text-white placeholder:text-white/40"
+                aria-label={`Question ${qi + 1} option ${oi + 1}`}
+                className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               />
             </label>
           ))}
@@ -172,7 +191,7 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
             onClick={() =>
               update(qi, { options: [...q.options, ''] })
             }
-            className="text-xs text-primary-light hover:underline"
+            className="rounded text-xs text-primary-light hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             + option
           </button>
@@ -183,11 +202,11 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
           Add question
         </Button>
         {createdQuizId ? (
-          <Button size="sm" onClick={launch}>
+          <Button size="sm" onClick={launch} disabled={pending}>
             Launch quiz
           </Button>
         ) : (
-          <Button size="sm" onClick={create}>
+          <Button size="sm" onClick={create} disabled={pending}>
             Create
           </Button>
         )}
