@@ -123,6 +123,11 @@ export function useSocketEvents(sessionId: string): void {
     const onHandDown = (d: { userId: string }) =>
       store().removeRaisedHand(d.userId)
 
+    const onSessionEnded = () => {
+      store().setSessionEnded(true)
+      toast({ variant: 'default', title: 'The class has ended' })
+    }
+
     socket.on('cuecard:shown', onCueCard)
     socket.on('poll:launched', onPollLaunched)
     socket.on('poll:results', onPollResults)
@@ -139,6 +144,7 @@ export function useSocketEvents(sessionId: string): void {
     socket.on('assignment:unlocked', onAssignmentUnlocked)
     socket.on('raise_hand:up', onHandUp)
     socket.on('raise_hand:down', onHandDown)
+    socket.on('session:ended', onSessionEnded)
 
     return () => {
       socket.off('cuecard:shown', onCueCard)
@@ -157,6 +163,7 @@ export function useSocketEvents(sessionId: string): void {
       socket.off('assignment:unlocked', onAssignmentUnlocked)
       socket.off('raise_hand:up', onHandUp)
       socket.off('raise_hand:down', onHandDown)
+      socket.off('session:ended', onSessionEnded)
     }
   }, [sessionId])
 }
