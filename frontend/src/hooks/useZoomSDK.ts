@@ -245,6 +245,50 @@ export function useZoomSDK(
         }
       })
 
+      // M4 — the host always sees ITSELF and every attendee always sees the
+      // HOST. The active-speaker view otherwise follows whoever talks / has
+      // video, so an attendee can take over the screen (muting audio alone does
+      // NOT stop that). So we PIN the right person per client: the host pins
+      // itself, every attendee pins the host — addPin overrides the active
+      // speaker. We also muteAll (host privilege) so attendees can't talk over
+      // the lecture; they still hear the host.
+      const pinBroadcast = () => {
+        try {
+          const me = c.getCurrentUser?.()
+          if (!me) return
+          const list = (c.getAttendeeslist?.() ?? []) as Array<{
+            userId: number
+            isHost?: boolean
+          }>
+          const host = me.isHost ? me : list.find((p) => p?.isHost)
+          const targetId = host?.userId
+          if (targetId == null) return
+          const pinned = (c.getPinList?.() ?? []) as number[]
+          if (pinned.length !== 1 || pinned[0] !== targetId) {
+            c.removeAllPins?.()
+            c.addPin?.(targetId)
+          }
+        } catch {
+          /* not ready */
+        }
+      }
+      const enforceHostBroadcast = () => {
+        try {
+          if (c.isHost?.()) c.muteAll?.(true)
+        } catch {
+          /* not ready / not host */
+        }
+      }
+      window.setTimeout(() => {
+        enforceHostBroadcast()
+        pinBroadcast()
+      }, 1800)
+      c.on('user-added', () => {
+        window.setTimeout(enforceHostBroadcast, 600)
+        window.setTimeout(pinBroadcast, 900)
+      })
+      c.on('user-updated', pinBroadcast)
+
       // Sizing model: WIDTH is the lever, not height.
       //
       // The SDK sizes its video/share canvas to FILL the width we give it and
@@ -450,7 +494,10 @@ export function useZoomSDK(
       // leaves a stale gap) or pops the reclaim-host toast back in. center()
       // measures and re-applies synchronously, so there's no flicker.
       if (chromeTimerRef.current) clearInterval(chromeTimerRef.current)
-      chromeTimerRef.current = window.setInterval(center, 1000)
+      chromeTimerRef.current = window.setInterval(() => {
+        center()
+        pinBroadcast()
+      }, 1000)
       c.on('connection-change', (p: { state?: string }) => {
         if (p?.state === 'Connected') settle()
       })
