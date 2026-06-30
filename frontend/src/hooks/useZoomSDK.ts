@@ -119,9 +119,16 @@ export function useZoomSDK(
       // DOM. Reserve the header + SDK chrome so the widget (and its control
       // toolbar) fits inside the container from the first frame.
       const container = root.parentElement ?? root
+      // Height-bound the very first frame too (width clamped so a 16:9 video
+      // can't start taller than the area), so the toolbar isn't hidden before
+      // settle()/correct() take over.
+      const initH = Math.max(
+        window.innerHeight - HEADER_H - SDK_CHROME_BASELINE,
+        240,
+      )
       const initialSize = {
-        width: Math.max(window.innerWidth, 320),
-        height: Math.max(window.innerHeight - HEADER_H - SDK_CHROME_BASELINE, 240),
+        width: Math.max(Math.min(window.innerWidth, Math.round((initH * 16) / 9)), 320),
+        height: initH,
       }
       // Locate the SDK's bottom control toolbar (mic/camera/share/chat/leave).
       // Confirmed selector in SDK v6.1: <footer id="wc-footer"> with class
@@ -215,92 +222,148 @@ export function useZoomSDK(
         }
       })
 
-      // `videoH` is the height we ask the SDK to render the video at. It starts
-      // from the container height minus a baseline chrome reserve, then
-      // correctToolbar() trims it further if the real toolbar still overflows.
-      let videoH = Math.max(
-        (container.getBoundingClientRect().height ||
-          window.innerHeight - HEADER_H) - SDK_CHROME_BASELINE,
-        240,
-      )
+      // Sizing model: WIDTH is the lever, not height.
+      //
+      // The SDK sizes its video/share canvas to FILL the width we give it and
+      // derives the height from the content's aspect ratio. So a full-width 16:9
+      // video on a wide, short area becomes TALLER than the container — the
+      // control toolbar (#wc-footer, pinned to the widget's bottom) is pushed
+      // below the fold and clipped (host loses the controls) and the video is
+      // vertically cropped (students see "half the presenter"). Shrinking the
+      // height we request does nothing because the height is width-derived.
+      //
+      // Instead we shrink the canvas WIDTH until the content's height fits, which
+      // letterboxes it (whole presenter, thin black bars) and keeps the toolbar
+      // on-screen. `curW` is the width we push; correct() measures the REAL
+      // toolbar and trims curW further for ANY content aspect — so an odd-ratio
+      // screen share converges too, without assuming a ratio.
+      let curW = 0
 
-      // Push the current width + videoH to the SDK. Width tracks the container
-      // so the video shrinks when the side panel opens.
-      const applySize = () => {
+      // The SDK pins its widget `position:absolute; left:0; top:0` inside the
+      // mount, so a letterboxed (narrower-than-container) canvas sits flush left
+      // with ALL the black margin dumped on the right. We centre it by nudging
+      // the widget's own left/top — measured against the container, because the
+      // widget's offsetParent is a zero-width wrapper (so `left:50%` is useless;
+      // the popper anchor doesn't move the widget box either).
+      const findWidget = (): HTMLElement | null => {
+        const r = rootRef.current
+        if (!r) return null
+        return (
+          Array.from(r.querySelectorAll<HTMLElement>('div')).find((d) => {
+            const cs = getComputedStyle(d)
+            const rect = d.getBoundingClientRect()
+            return (
+              cs.position === 'absolute' && rect.width > 400 && rect.height > 300
+            )
+          }) ?? null
+        )
+      }
+
+      const center = () => {
+        const widget = findWidget()
+        if (!widget) return
+        const cRect = container.getBoundingClientRect()
+        const wRect = widget.getBoundingClientRect()
+        if (wRect.width < 100 || cRect.width === 0) return
+        const curLeft = parseFloat(widget.style.left) || 0
+        const curTop = parseFloat(widget.style.top) || 0
+        const desiredX = Math.max((cRect.width - wRect.width) / 2, 0)
+        const desiredY = Math.max((cRect.height - wRect.height) / 2, 0)
+        const nl = Math.round(curLeft + (desiredX - (wRect.left - cRect.left)))
+        const nt = Math.round(curTop + (desiredY - (wRect.top - cRect.top)))
+        widget.style.right = 'auto'
+        widget.style.bottom = 'auto'
+        widget.style.transform = 'none'
+        if (Math.abs(nl - curLeft) > 1 || !widget.style.left) {
+          widget.style.left = nl + 'px'
+        }
+        if (Math.abs(nt - curTop) > 1 || !widget.style.top) {
+          widget.style.top = nt + 'px'
+        }
+      }
+
+      const apply = () => {
         const rect = container.getBoundingClientRect()
-        const w = Math.max(rect.width > 0 ? rect.width : window.innerWidth, 320)
-        const sz = { width: w, height: Math.max(videoH, 240) }
+        const cw = Math.max(rect.width > 0 ? rect.width : window.innerWidth, 320)
+        const ch = Math.max(
+          rect.height > 0 ? rect.height : window.innerHeight - HEADER_H,
+          320,
+        )
+        const availH = Math.max(ch - SDK_CHROME_BASELINE, MIN_VIDEO_H)
+        if (curW <= 0) curW = Math.min(cw, Math.round((availH * 16) / 9))
+        curW = Math.max(Math.min(curW, cw), 320)
+        const sz = { width: curW, height: availH }
         try {
           c.updateVideoOptions?.({ viewSizes: { default: sz, ribbon: sz } })
         } catch {
           /* not ready yet */
         }
+        center()
       }
 
-      // BIDIRECTIONAL convergent corrector. Measure the gap between the REAL
-      // toolbar's bottom and the container's bottom:
-      //   gap = container.bottom - toolbar.bottom
-      // The toolbar is `position:absolute; bottom:0` of the SDK widget, and the
-      // widget's height tracks videoH plus a fixed top info-bar — so moving
-      // videoH by Δ moves the toolbar's bottom by ~Δ (loop gain ≈ 1). We steer
-      // gap toward a small positive TARGET_GAP:
-      //   - gap < 0  → toolbar overflows below the fold → shrink video.
-      //   - gap > TARGET_GAP → wasted black margin below the toolbar → grow.
-      //   - |gap - TARGET_GAP| <= DEADBAND → converged, do nothing.
-      // The grow step is capped at (gap - TARGET_GAP) so that even if the gain
-      // is under-estimated we can never push the toolbar past the bottom;
-      // shrink fully clears any overflow plus the target. Reads actual rendered
-      // geometry, so it assumes nothing about the chrome height.
-      const correctToolbar = () => {
+      // Measure the REAL toolbar and steer curW so its bottom sits a small
+      // TARGET_GAP above the container's bottom. The widget height scales ~linearly
+      // with the canvas width (height = width / aspect), so we rescale curW by
+      // (fittedHeight / currentHeight). Reads rendered geometry, so it assumes
+      // nothing about the content ratio — camera or screen share both converge.
+      const correct = () => {
         const toolbar = findToolbar()
         if (!toolbar) return
         const cRect = container.getBoundingClientRect()
         const tRect = toolbar.getBoundingClientRect()
         if (tRect.height === 0 || cRect.height === 0) return // not laid out yet
-        const gap = cRect.bottom - tRect.bottom
-        const error = gap - TARGET_GAP // >0 too much margin, <0 overflowing
-        if (Math.abs(error) <= DEADBAND) return // converged — avoid jitter
-        const maxH = Math.max(cRect.height, MIN_VIDEO_H)
-        let next: number
-        if (error > 0) {
-          // Excess gap: grow, but never by more than the gap above the target,
-          // so the toolbar cannot cross the bottom even if the gain is < 1.
-          next = Math.min(videoH + error, maxH)
-        } else {
-          // Overflow: shrink enough to pull the toolbar fully back in and seat
-          // it at the target margin.
-          next = Math.max(videoH + error, MIN_VIDEO_H)
-        }
-        if (Math.abs(next - videoH) < 1) return // no actionable change
-        videoH = next
-        applySize()
+        const widgetH = tRect.bottom - cRect.top // mount top → toolbar bottom
+        if (widgetH <= 0) return
+        const delta = tRect.bottom - (cRect.bottom - TARGET_GAP) // >0 overflow
+        if (Math.abs(delta) <= DEADBAND) return // converged — avoid jitter
+        const cw = Math.max(cRect.width, 320)
+        // Shrink (delta>0) or grow (delta<0) width in proportion to the height
+        // change needed; growth is capped at the container width.
+        let next = (curW * (widgetH - delta)) / widgetH
+        next = Math.max(320, Math.min(next, cw))
+        if (Math.abs(next - curW) < 1) return // no actionable change
+        curW = next
+        apply()
       }
 
-      // Reset to a conservative baseline for the current container size (chrome
-      // slightly OVER-reserved so the very first frame never hides the toolbar),
-      // then fire a burst of measure-and-correct passes that converge UP or DOWN
-      // to TARGET_GAP. The SDK re-renders async (and the footer has a .2s
-      // transform transition), so we retry as it settles — extra late passes let
-      // the loop reach the target instead of stopping at the first non-overflow.
+      // Reset to a fresh 16:9 guess for the current container, then fire a burst
+      // of measure-and-correct passes (the SDK re-renders async + the footer has
+      // a .2s transition) that converge for whatever is actually on screen.
       const settle = () => {
-        videoH = Math.max(
-          (container.getBoundingClientRect().height ||
-            window.innerHeight - HEADER_H) - SDK_CHROME_BASELINE,
-          MIN_VIDEO_H,
+        const rect = container.getBoundingClientRect()
+        const ch = Math.max(
+          rect.height > 0 ? rect.height : window.innerHeight - HEADER_H,
+          320,
         )
-        applySize()
+        const availH = Math.max(ch - SDK_CHROME_BASELINE, MIN_VIDEO_H)
+        const cw = Math.max(rect.width > 0 ? rect.width : window.innerWidth, 320)
+        curW = Math.min(cw, Math.round((availH * 16) / 9))
+        apply()
         // Clear any pending burst before scheduling a new one so rapid resizes
         // (e.g. window drag) don't stack timers.
         settleTimersRef.current.forEach(clearTimeout)
         settleTimersRef.current = [
           120, 350, 700, 1100, 1600, 2200, 3000, 4000,
-        ].map((ms) => window.setTimeout(correctToolbar, ms))
+        ].map((ms) =>
+          window.setTimeout(() => {
+            correct()
+            center()
+          }, ms),
+        )
       }
 
       settle()
       c.on('connection-change', (p: { state?: string }) => {
         if (p?.state === 'Connected') settle()
       })
+      // A screen share starting/stopping swaps the active canvas to a different
+      // aspect ratio — re-fit so the share isn't cropped and the toolbar stays
+      // visible.
+      c.on('peer-share-state-change', () => settle())
+      // The active-speaker tile (and camera on/off) re-renders the widget, which
+      // resets its position — re-fit + re-centre so it doesn't snap back to the
+      // top-left.
+      c.on('active-speaker', () => settle())
 
       // Re-settle when the container resizes (side panel open/close) or the
       // window resizes. The observer watches OUR flex container, whose size is
