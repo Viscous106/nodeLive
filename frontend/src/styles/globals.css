@@ -114,3 +114,11 @@ body {
 #zoomAppRoot .footer__hidden {
   transform: none !important;
 }
+
+/* The Zoom active-speaker <video> defaults to object-fit:contain, which
+   letterboxes the real camera feed (black bars on the sides). Fill it so the
+   video reaches the edges. Combined with the widget stretch in useZoomSDK this
+   nets only ~3% distortion (the video area is already nearly 16:9). */
+#zoomAppRoot video {
+  object-fit: fill !important;
+}

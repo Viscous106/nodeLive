@@ -66,6 +66,7 @@ export function useZoomSDK(
   const resizeObsRef = useRef<ResizeObserver | null>(null)
   const resizeListenerRef = useRef<(() => void) | null>(null)
   const settleTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const chromeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [status, setStatus] = useState<ZoomStatus>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const setAttendeeCount = useLiveClassStore((s) => s.setAttendeeCount)
@@ -76,6 +77,10 @@ export function useZoomSDK(
     return () => {
       settleTimersRef.current.forEach(clearTimeout)
       settleTimersRef.current = []
+      if (chromeTimerRef.current) {
+        clearInterval(chromeTimerRef.current)
+        chromeTimerRef.current = null
+      }
       resizeObsRef.current?.disconnect()
       resizeObsRef.current = null
       if (resizeListenerRef.current) {
@@ -277,33 +282,96 @@ export function useZoomSDK(
         )
       }
 
+      // Strip the Zoom chrome we don't want, so the video area is just video +
+      // the bottom control bar. Everything here is invisible/non-interactive but
+      // KEPT in the DOM (display:none on the *controls* broke audio, so we never
+      // remove SDK nodes). Runs on the burst AND on a 1s timer, because some of
+      // these (the reclaim-host toast) pop in on their own schedule.
+      const hideZoomChrome = () => {
+        const r = rootRef.current
+        if (!r) return
+        const cRect = container.getBoundingClientRect()
+        // (a) the top info strip (shield + view-layout menu) — out of the layout
+        // so the video fills from the very top.
+        const topBtn = Array.from(r.querySelectorAll<HTMLElement>('button')).find(
+          (b) => {
+            const rect = b.getBoundingClientRect()
+            return rect.height > 0 && rect.top < cRect.top + 70
+          },
+        )
+        let strip: HTMLElement | null = topBtn ?? null
+        for (let i = 0; i < 6 && strip; i++) {
+          const rect = strip.getBoundingClientRect()
+          if (rect.width > 600 && rect.height < 120) break
+          strip = strip.parentElement
+        }
+        if (strip && getComputedStyle(strip).position !== 'absolute') {
+          strip.style.position = 'absolute'
+          strip.style.top = '0'
+          strip.style.left = '0'
+          strip.style.right = '0'
+          strip.style.height = '0'
+          strip.style.overflow = 'hidden'
+          strip.style.opacity = '0'
+          strip.style.pointerEvents = 'none'
+        }
+        // (b) any leftover top-region Zoom buttons (e.g. the minimize/account
+        // button in the corner).
+        for (const b of Array.from(r.querySelectorAll<HTMLElement>('button'))) {
+          const rect = b.getBoundingClientRect()
+          if (rect.height > 0 && rect.top < cRect.top + 60 && b.style.opacity !== '0') {
+            b.style.opacity = '0'
+            b.style.pointerEvents = 'none'
+          }
+        }
+        // (c) the Zoom "you can reclaim the host role" toast, wherever it renders.
+        const reclaim = Array.from(
+          document.querySelectorAll<HTMLElement>('div,span,p'),
+        ).find(
+          (el) =>
+            el.children.length <= 6 &&
+            /reclaim the host/i.test(el.textContent || '') &&
+            el.getBoundingClientRect().width > 80,
+        )
+        if (reclaim) {
+          const toast =
+            reclaim.closest<HTMLElement>(
+              '[class*="notification" i],[class*="toast" i],[class*="popup" i],[role="alert"]',
+            ) ?? reclaim
+          toast.style.display = 'none'
+        }
+      }
+
       const center = () => {
+        hideZoomChrome()
         const widget = findWidget()
         if (!widget) return
         const cRect = container.getBoundingClientRect()
-        if (cRect.width === 0) return
-        // Measure with NO transform so the position + stretch ratio are correct.
+        if (cRect.width === 0 || cRect.height === 0) return
+        // Measure with NO transform so the position + fill ratios are correct.
         widget.style.transform = 'none'
         const wRect = widget.getBoundingClientRect()
         const naturalW = widget.offsetWidth
-        if (naturalW < 100) return
+        const naturalH = widget.offsetHeight
+        if (naturalW < 100 || naturalH < 100) return
         const curLeft = parseFloat(widget.style.left) || 0
         const curTop = parseFloat(widget.style.top) || 0
-        const desiredX = Math.max((cRect.width - naturalW) / 2, 0)
-        const desiredY = Math.max((cRect.height - wRect.height) / 2, 0)
-        const nl = Math.round(curLeft + (desiredX - (wRect.left - cRect.left)))
-        const nt = Math.round(curTop + (desiredY - (wRect.top - cRect.top)))
+        // Anchor the widget to the container's top-left, then scale it to fill
+        // BOTH dimensions — removes the side AND top/bottom black. The 16:9 feed
+        // gets stretched to fit (the accepted "fill, no bars" trade-off), and a
+        // CSS transform keeps the controls in the DOM + clickable.
+        const nl = Math.round(curLeft - (wRect.left - cRect.left))
+        const nt = Math.round(curTop - (wRect.top - cRect.top))
         widget.style.right = 'auto'
         widget.style.bottom = 'auto'
         widget.style.left = nl + 'px'
         widget.style.top = nt + 'px'
-        // STRETCH horizontally to fill the full width — removes the side bars.
-        // The 16:9 feed gets widened, so the presenter looks a bit stretched:
-        // the deliberate "fill, no black bars" trade-off. Vertical is untouched,
-        // and a CSS transform keeps the controls in the DOM + clickable.
-        const ratio = Math.max(cRect.width / naturalW, 1)
-        widget.style.transformOrigin = 'center top'
-        widget.style.transform = `scaleX(${ratio})`
+        // Overshoot by a few px so rounding never leaves a sliver of black at
+        // the right/bottom edges; the overflow is clipped by the container.
+        const sx = Math.max((cRect.width + 8) / naturalW, 1)
+        const sy = Math.max((cRect.height + 8) / naturalH, 1)
+        widget.style.transformOrigin = 'left top'
+        widget.style.transform = `scaleX(${sx}) scaleY(${sy})`
       }
 
       const apply = () => {
@@ -377,6 +445,12 @@ export function useZoomSDK(
       }
 
       settle()
+      // Re-run the fill + chrome-hide every second so they stay correct when the
+      // SDK silently re-renders the video at a different size (which otherwise
+      // leaves a stale gap) or pops the reclaim-host toast back in. center()
+      // measures and re-applies synchronously, so there's no flicker.
+      if (chromeTimerRef.current) clearInterval(chromeTimerRef.current)
+      chromeTimerRef.current = window.setInterval(center, 1000)
       c.on('connection-change', (p: { state?: string }) => {
         if (p?.state === 'Connected') settle()
       })
@@ -434,6 +508,10 @@ export function useZoomSDK(
   const leaveMeeting = useCallback(async () => {
     settleTimersRef.current.forEach(clearTimeout)
     settleTimersRef.current = []
+    if (chromeTimerRef.current) {
+      clearInterval(chromeTimerRef.current)
+      chromeTimerRef.current = null
+    }
     resizeObsRef.current?.disconnect()
     resizeObsRef.current = null
     if (resizeListenerRef.current) {
