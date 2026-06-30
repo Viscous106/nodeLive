@@ -144,17 +144,39 @@ export function useZoomSDK(
       const findToolbar = (): HTMLElement | null => {
         const r = rootRef.current
         if (!r) return null
-        return (
+        // Older SDK builds expose a stable footer id/class.
+        const known =
           r.querySelector<HTMLElement>('#wc-footer') ??
           r.querySelector<HTMLElement>('.footer.main-footer') ??
-          r.querySelector<HTMLElement>('.footer') ??
-          r
-            .querySelector<HTMLElement>(
-              '.join-audio-container__btn, .send-video-container__btn',
-            )
-            ?.closest<HTMLElement>('footer, [class*="footer"]') ??
-          null
+          r.querySelector<HTMLElement>('.footer')
+        if (known) return known
+        // This SDK build renders the controls as a MUI bar with only hashed class
+        // names, so locate it by SHAPE: a control button near the bottom, then
+        // climb to the wide, short bar that holds it.
+        const box = (r.parentElement ?? r).getBoundingClientRect()
+        const btn = Array.from(r.querySelectorAll<HTMLElement>('button')).find(
+          (b) => {
+            const rect = b.getBoundingClientRect()
+            return rect.height > 0 && rect.top > box.bottom - 140
+          },
         )
+        let bar: HTMLElement | null = btn ?? null
+        for (let i = 0; i < 7 && bar; i++) {
+          const rect = bar.getBoundingClientRect()
+          if (rect.width > 700 && rect.height < 90) return bar
+          bar = bar.parentElement
+        }
+        return null
+      }
+
+      // Attendees are view-only — hide the control bar the SDK rendered. The CSS
+      // rule in globals.css covers builds that expose #wc-footer; this covers the
+      // MUI build whose bar has only hashed class names. Re-applied through the
+      // settle burst because the SDK re-renders the bar.
+      const hideControlsIfViewer = () => {
+        if (isInstructor) return
+        const bar = findToolbar()
+        if (bar && bar.style.display !== 'none') bar.style.display = 'none'
       }
 
       // Pre-join capability probe (read-only). checkSystemRequirements() returns
@@ -306,6 +328,7 @@ export function useZoomSDK(
           /* not ready yet */
         }
         center()
+        hideControlsIfViewer()
       }
 
       // Measure the REAL toolbar and steer curW so its bottom sits a small
@@ -355,6 +378,7 @@ export function useZoomSDK(
           window.setTimeout(() => {
             correct()
             center()
+            hideControlsIfViewer()
           }, ms),
         )
       }
