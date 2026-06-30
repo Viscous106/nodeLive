@@ -9,6 +9,10 @@ interface Props {
   confirmLabel?: string
   onConfirm: () => void
   onCancel: () => void
+  /** Optional middle action (e.g. host "Just leave" alongside "End for everyone"). */
+  secondaryLabel?: string
+  onSecondary?: () => void
+  confirmDisabled?: boolean
 }
 
 export function ConfirmDialog({
@@ -18,6 +22,9 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm',
   onConfirm,
   onCancel,
+  secondaryLabel,
+  onSecondary,
+  confirmDisabled,
 }: Props) {
   useEffect(() => {
     if (!open) return
@@ -49,7 +56,17 @@ export function ConfirmDialog({
           <Button variant="outline" size="sm" onClick={onCancel} autoFocus>
             Cancel
           </Button>
-          <Button variant="danger" size="sm" onClick={onConfirm}>
+          {secondaryLabel && onSecondary && (
+            <Button variant="ghost" size="sm" onClick={onSecondary}>
+              {secondaryLabel}
+            </Button>
+          )}
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={onConfirm}
+            disabled={confirmDisabled}
+          >
             {confirmLabel}
           </Button>
         </div>

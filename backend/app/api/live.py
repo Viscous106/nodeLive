@@ -19,13 +19,14 @@ from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, nulls_last, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_current_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.assignment import Assignment
+from app.models.attendance import Meeting
 from app.models.course import ClassSession, Enrollment, SessionStatus
 from app.models.live_meeting import (
     Bookmark,
@@ -67,10 +68,11 @@ from app.schemas.live import (
     RankedUser,
     ZoomJoinOut,
 )
+from app.schemas.session import ClassSessionOut
 from app.utils import llm, zoom_meetings
 from app.utils.scoring import POLL_POINTS, poll_percentages, score_answer
 from app.utils.zoom_jwt import generate_zoom_signature
-from app.workers import quiz_tasks
+from app.workers import attendance_tasks, quiz_tasks
 
 router = APIRouter(tags=["live"])
 
@@ -245,6 +247,41 @@ async def join(
         password=password,
         zak=zak,
     )
+
+
+@router.post("/sessions/{session_id}/live/end", response_model=ClassSessionOut)
+async def end_live_session(
+    session_id: str,
+    cs: ClassSession = Depends(_host_session),
+    db: AsyncSession = Depends(get_db),
+) -> ClassSession:
+    """Host ends the live class for everyone. Flips the session to ENDED, stamps
+    ended_at, broadcasts `session:ended` so participants' clients leave, and
+    triggers the attendance reconcile — mirrors POST /admin/sessions/{id}/end so
+    the status stops showing LIVE the moment the host ends the class (rather than
+    waiting on the Zoom webhook or the hourly janitor)."""
+    if cs.status not in (SessionStatus.SCHEDULED, SessionStatus.LIVE):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Session is already ended or cancelled"
+        )
+
+    cs.status = SessionStatus.ENDED
+    cs.ended_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(cs)
+
+    await emit.to_session(session_id, "session:ended", {"sessionId": session_id})
+
+    if cs.zoom_meeting_id:
+        meeting = await db.scalar(
+            select(Meeting)
+            .where(Meeting.zoom_meeting_id == cs.zoom_meeting_id)
+            .order_by(nulls_last(Meeting.ended_at.desc()))
+            .limit(1)
+        )
+        if meeting is not None:
+            attendance_tasks.schedule_reconcile(meeting.zoom_uuid)
+    return cs
 
 
 @router.get("/sessions/{session_id}/live/state", response_model=LiveStateOut)

@@ -36,9 +36,11 @@ interface LiveClassState {
   leaderboard: RankedUser[]
   myScore: number
   attendeeCount: number
+  sessionEnded: boolean
 
   hydrate: (state: LiveState) => void
   reset: () => void
+  setSessionEnded: (ended: boolean) => void
 
   setCueCard: (card: CueCard | null) => void
   setPoll: (poll: Poll | null) => void
@@ -73,6 +75,7 @@ const initial = {
   leaderboard: [],
   myScore: 0,
   attendeeCount: 0,
+  sessionEnded: false,
 }
 
 export const useLiveClassStore = create<LiveClassState>((set) => ({
@@ -90,6 +93,7 @@ export const useLiveClassStore = create<LiveClassState>((set) => ({
       leaderboard: state.leaderboard,
     }),
   reset: () => set(initial),
+  setSessionEnded: (sessionEnded) => set({ sessionEnded }),
 
   setCueCard: (currentCueCard) => set({ currentCueCard }),
   setPoll: (activePoll) => set({ activePoll, pollResults: [] }),

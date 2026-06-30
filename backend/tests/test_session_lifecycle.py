@@ -14,6 +14,7 @@ from app.auth.security import hash_password
 from app.models.attendance import Meeting
 from app.models.course import ClassSession, Course, Enrollment, SessionStatus
 from app.models.user import User, UserRole
+from app.realtime import emit
 from app.services.roles import assign_role
 from app.workers import attendance_tasks, session_tasks
 
@@ -175,6 +176,102 @@ async def test_end_session_triggers_reconcile(client, session, monkeypatch):
     r = await client.post(f"/api/admin/sessions/{cs.id}/end")
     assert r.status_code == 200
     assert calls == ["uuid-end-1"]
+
+
+# --- POST /sessions/{id}/live/end (host ends for everyone) -------------------
+
+
+@pytest.mark.asyncio
+async def test_host_ends_live_session(client, session):
+    host = await _user(session, "host@x.com", UserRole.INSTRUCTOR)
+    course = await _course(session)
+    cs = await _session(
+        session,
+        course,
+        host,
+        status=SessionStatus.LIVE,
+        scheduled_at=datetime.now(UTC) - timedelta(minutes=10),
+    )
+    await _login(client, "host@x.com")
+
+    r = await client.post(f"/api/sessions/{cs.id}/live/end")
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "ENDED"
+    await session.refresh(cs)
+    assert cs.status == SessionStatus.ENDED
+    assert cs.ended_at is not None
+
+
+@pytest.mark.asyncio
+async def test_host_end_requires_privilege(client, session):
+    host = await _user(session, "host@x.com", UserRole.INSTRUCTOR)
+    await _user(session, "stu2@x.com", UserRole.STUDENT)
+    course = await _course(session)
+    cs = await _session(
+        session,
+        course,
+        host,
+        status=SessionStatus.LIVE,
+        scheduled_at=datetime.now(UTC) - timedelta(minutes=10),
+    )
+    await _login(client, "stu2@x.com")
+    r = await client.post(f"/api/sessions/{cs.id}/live/end")
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_host_end_already_ended_409(client, session):
+    host = await _user(session, "host@x.com", UserRole.INSTRUCTOR)
+    course = await _course(session)
+    cs = await _session(
+        session,
+        course,
+        host,
+        status=SessionStatus.ENDED,
+        scheduled_at=datetime.now(UTC) - timedelta(days=1),
+    )
+    await _login(client, "host@x.com")
+    r = await client.post(f"/api/sessions/{cs.id}/live/end")
+    assert r.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_host_end_broadcasts_and_reconciles(client, session, monkeypatch):
+    events: list[str] = []
+    reconciles: list[str] = []
+
+    async def _fake_emit(session_id, event, payload):
+        events.append(event)
+
+    monkeypatch.setattr(emit, "to_session", _fake_emit)
+    monkeypatch.setattr(
+        attendance_tasks, "schedule_reconcile", lambda uuid: reconciles.append(uuid)
+    )
+
+    host = await _user(session, "host@x.com", UserRole.INSTRUCTOR)
+    course = await _course(session)
+    cs = await _session(
+        session,
+        course,
+        host,
+        status=SessionStatus.LIVE,
+        scheduled_at=datetime.now(UTC) - timedelta(minutes=10),
+        zoom_id="900900900",
+    )
+    session.add(
+        Meeting(
+            zoom_uuid="uuid-live-end",
+            zoom_meeting_id="900900900",
+            ended_at=datetime.now(UTC) - timedelta(minutes=2),
+        )
+    )
+    await session.commit()
+    await _login(client, "host@x.com")
+
+    r = await client.post(f"/api/sessions/{cs.id}/live/end")
+    assert r.status_code == 200, r.text
+    assert "session:ended" in events
+    assert reconciles == ["uuid-live-end"]
 
 
 # --- janitor ------------------------------------------------------------------
