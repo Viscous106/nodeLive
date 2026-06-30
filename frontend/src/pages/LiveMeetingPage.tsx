@@ -27,6 +27,9 @@ export default function LiveMeetingPage() {
   const { data: session, isLoading } = useSession(sessionId)
   const rootRef = useRef<HTMLDivElement>(null)
   const joinedAt = useRef(Date.now())
+  const isInstructor = Boolean(
+    user && (user.role !== 'STUDENT' || session?.hostId === user.id),
+  )
 
   useLiveState(sessionId)
   useSocket(sessionId)
@@ -42,6 +45,7 @@ export default function LiveMeetingPage() {
     rootRef,
     sessionId,
     user ?? null,
+    isInstructor,
   )
 
   const reset = useLiveClassStore((s) => s.reset)
@@ -58,10 +62,6 @@ export default function LiveMeetingPage() {
 
   // Clear live state when leaving the page.
   useEffect(() => reset, [reset])
-
-  const isInstructor = Boolean(
-    user && (user.role !== 'STUDENT' || session?.hostId === user.id),
-  )
 
   // Leave the Zoom call but keep the session LIVE (host can rejoin; students
   // are simply leaving). This is the only action for students.
@@ -146,6 +146,7 @@ export default function LiveMeetingPage() {
             onJoin={joinMeeting}
             hasZoomMeeting={!!session?.zoomMeetingId}
             canStart={!!session && session.hostId === user?.id}
+            isInstructor={isInstructor}
           />
           <CueCardOverlay />
         </div>

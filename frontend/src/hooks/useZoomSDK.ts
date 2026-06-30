@@ -35,13 +35,16 @@ const HEADER_H = 48
 // the video canvas + the control toolbar (#wc-footer) pinned to the widget's
 // bottom. Those two bars are fixed pixel heights regardless of screen size, so
 // the reliable way to guarantee the toolbar fits is to reserve a fixed slice for
-// them and give the video the rest — which works out to ~80-85% of the height on
-// a normal screen (big enough to not feel small, with room for the toolbar). The
-// original bug sized the video to the FULL height, so the widget grew taller than
-// its container and the toolbar overflowed off the bottom. correctToolbar() then
-// measures the real toolbar and trims the video further only if anything still
-// spills over — so even an unusually tall info-bar can't hide the controls.
-const SDK_CHROME_BASELINE = 132
+// them and give the video the rest. correct() measures the real toolbar and
+// trims the video further only if anything still spills over — so even an
+// unusually tall info-bar can't hide the controls.
+//
+// HOST keeps the toolbar, so we reserve room for the info-bar + toolbar.
+// ATTENDEES are view-only — their toolbar is hidden (see globals.css), so we
+// reserve only the info-bar and let the video grow into the freed space (less
+// letterboxing). Kept tight so the video fills as much as the 16:9 aspect allows.
+const SDK_CHROME_HOST = 104
+const SDK_CHROME_VIEWER = 56
 
 // Convergence tuning for the bidirectional toolbar loop (see correctToolbar).
 // TARGET_GAP: desired px between the toolbar's bottom and the container's bottom
@@ -57,7 +60,11 @@ export function useZoomSDK(
   rootRef: React.RefObject<HTMLDivElement | null>,
   sessionId: string,
   user: User | null,
+  isInstructor: boolean,
 ) {
+  // Host reserves room for the (visible) control toolbar; view-only attendees
+  // don't, so their video fills more of the area.
+  const chromeReserve = isInstructor ? SDK_CHROME_HOST : SDK_CHROME_VIEWER
   const clientRef = useRef<EmbeddedClient | null>(null)
   const resizeObsRef = useRef<ResizeObserver | null>(null)
   const resizeListenerRef = useRef<(() => void) | null>(null)
@@ -123,7 +130,7 @@ export function useZoomSDK(
       // can't start taller than the area), so the toolbar isn't hidden before
       // settle()/correct() take over.
       const initH = Math.max(
-        window.innerHeight - HEADER_H - SDK_CHROME_BASELINE,
+        window.innerHeight - HEADER_H - chromeReserve,
         240,
       )
       const initialSize = {
@@ -289,7 +296,7 @@ export function useZoomSDK(
           rect.height > 0 ? rect.height : window.innerHeight - HEADER_H,
           320,
         )
-        const availH = Math.max(ch - SDK_CHROME_BASELINE, MIN_VIDEO_H)
+        const availH = Math.max(ch - chromeReserve, MIN_VIDEO_H)
         if (curW <= 0) curW = Math.min(cw, Math.round((availH * 16) / 9))
         curW = Math.max(Math.min(curW, cw), 320)
         const sz = { width: curW, height: availH }
@@ -335,7 +342,7 @@ export function useZoomSDK(
           rect.height > 0 ? rect.height : window.innerHeight - HEADER_H,
           320,
         )
-        const availH = Math.max(ch - SDK_CHROME_BASELINE, MIN_VIDEO_H)
+        const availH = Math.max(ch - chromeReserve, MIN_VIDEO_H)
         const cw = Math.max(rect.width > 0 ? rect.width : window.innerWidth, 320)
         curW = Math.min(cw, Math.round((availH * 16) / 9))
         apply()
@@ -405,7 +412,7 @@ export function useZoomSDK(
       setErrorMsg(msg || 'Failed to join the meeting — check the console (F12).')
       setStatus('error')
     }
-  }, [rootRef, sessionId, user, refreshAttendees])
+  }, [rootRef, sessionId, user, isInstructor, refreshAttendees])
 
   const leaveMeeting = useCallback(async () => {
     settleTimersRef.current.forEach(clearTimeout)
