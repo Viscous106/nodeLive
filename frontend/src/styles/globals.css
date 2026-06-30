@@ -114,16 +114,3 @@ body {
 #zoomAppRoot .footer__hidden {
   transform: none !important;
 }
-
-/* View-only attendees: hide the Zoom control toolbar entirely. Students watch
-   the host and participate through the app's own tools (raise hand, chat, polls),
-   so they never need the SDK's mic/camera/share/leave controls — only the host
-   does. The app's own top-bar "Leave" button still lets them exit.
-   NOTE: this also removes the toolbar's "Join Audio" button, so attendee audio
-   depends on the meeting connecting receive-audio automatically — verify after
-   deploy that attendees can still hear the host. */
-.zoom-viewonly #wc-footer,
-.zoom-viewonly .footer.main-footer,
-.zoom-viewonly .footer {
-  display: none !important;
-}
