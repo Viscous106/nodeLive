@@ -122,3 +122,12 @@ body {
 #zoomAppRoot video {
   object-fit: fill !important;
 }
+
+/* A screen share is the exception: stretching it makes shared text/slides/code
+   unreadable. When useZoomSDK detects an active share it adds `.zoom-sharing`
+   (and drops the widget stretch transform), so the share renders undistorted
+   (object-fit: contain — thin letterbox bars are acceptable on a share). Higher
+   specificity than the fill rule above, so it wins while a share is live. */
+#zoomAppRoot.zoom-sharing video {
+  object-fit: contain !important;
+}

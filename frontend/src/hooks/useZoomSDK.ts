@@ -61,6 +61,7 @@ export function useZoomSDK(
   rootRef: React.RefObject<HTMLDivElement | null>,
   sessionId: string,
   user: User | null,
+  isHost: boolean,
 ) {
   const clientRef = useRef<EmbeddedClient | null>(null)
   const resizeObsRef = useRef<ResizeObserver | null>(null)
@@ -260,8 +261,12 @@ export function useZoomSDK(
             userId: number
             isHost?: boolean
           }>
-          const host = me.isHost ? me : list.find((p) => p?.isHost)
-          const targetId = host?.userId
+          // The Zoom host ROLE can bounce between sessions, so don't trust it to
+          // identify the lecturer. Use the APP's notion: if I'm the session host,
+          // pin MYSELF; otherwise pin whoever currently holds the Zoom host role.
+          const targetId = isHost
+            ? me.userId
+            : list.find((p) => p?.isHost)?.userId
           if (targetId == null) return
           const pinned = (c.getPinList?.() ?? []) as number[]
           if (pinned.length !== 1 || pinned[0] !== targetId) {
@@ -386,6 +391,19 @@ export function useZoomSDK(
         }
       }
 
+      // True when ANY participant is screen-sharing. Reads the SDK's
+      // authoritative `Participant.sharerOn` flag (not a DOM/text heuristic), so
+      // a stale "you're sharing the screen" toast can't trigger a false positive.
+      const isSharing = (): boolean => {
+        try {
+          const me = c.getCurrentUser?.()
+          const list = c.getAttendeeslist?.() ?? []
+          return [me, ...list].some((p) => Boolean(p?.sharerOn))
+        } catch {
+          return false
+        }
+      }
+
       const center = () => {
         hideZoomChrome()
         const widget = findWidget()
@@ -400,6 +418,26 @@ export function useZoomSDK(
         if (naturalW < 100 || naturalH < 100) return
         const curLeft = parseFloat(widget.style.left) || 0
         const curTop = parseFloat(widget.style.top) || 0
+        // A SCREEN SHARE must stay readable, so it must NOT be stretched. When a
+        // share is active we flip #zoomAppRoot to `.zoom-sharing` (object-fit:
+        // contain in globals.css) and leave the widget at its natural size —
+        // anchored top-left, no scale transform. The share renders undistorted
+        // with thin letterbox bars (acceptable for slides/code), and the toolbar
+        // stays at full size + visible. apply()/correct() already sized the
+        // widget to fit the container width with the toolbar on-screen.
+        const sharingNow = isSharing()
+        root.classList.toggle('zoom-sharing', sharingNow)
+        if (sharingNow) {
+          const sl = Math.round(curLeft - (wRect.left - cRect.left))
+          const st = Math.round(curTop - (wRect.top - cRect.top))
+          widget.style.right = 'auto'
+          widget.style.bottom = 'auto'
+          widget.style.left = sl + 'px'
+          widget.style.top = st + 'px'
+          widget.style.transformOrigin = 'left top'
+          widget.style.transform = 'none'
+          return
+        }
         // Anchor the widget to the container's top-left, then scale it to fill
         // BOTH dimensions — removes the side AND top/bottom black. The 16:9 feed
         // gets stretched to fit (the accepted "fill, no bars" trade-off), and a
@@ -550,7 +588,7 @@ export function useZoomSDK(
       setErrorMsg(msg || 'Failed to join the meeting — check the console (F12).')
       setStatus('error')
     }
-  }, [rootRef, sessionId, user, refreshAttendees])
+  }, [rootRef, sessionId, user, isHost, refreshAttendees])
 
   const leaveMeeting = useCallback(async () => {
     settleTimersRef.current.forEach(clearTimeout)

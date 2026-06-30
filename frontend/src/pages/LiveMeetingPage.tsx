@@ -42,6 +42,7 @@ export default function LiveMeetingPage() {
     rootRef,
     sessionId,
     user ?? null,
+    Boolean(session && user && session.hostId === user.id),
   )
 
   const reset = useLiveClassStore((s) => s.reset)
