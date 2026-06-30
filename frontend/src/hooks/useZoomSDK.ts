@@ -35,16 +35,17 @@ const HEADER_H = 48
 // the video canvas + the control toolbar (#wc-footer) pinned to the widget's
 // bottom. Those two bars are fixed pixel heights regardless of screen size, so
 // the reliable way to guarantee the toolbar fits is to reserve a fixed slice for
-// them and give the video the rest. correct() measures the real toolbar and
-// trims the video further only if anything still spills over — so even an
-// unusually tall info-bar can't hide the controls.
-//
-// HOST keeps the toolbar, so we reserve room for the info-bar + toolbar.
-// ATTENDEES are view-only — their toolbar is hidden (see globals.css), so we
-// reserve only the info-bar and let the video grow into the freed space (less
-// letterboxing). Kept tight so the video fills as much as the 16:9 aspect allows.
-const SDK_CHROME_HOST = 104
-const SDK_CHROME_VIEWER = 56
+// them and give the video the rest — which works out to ~80-85% of the height on
+// a normal screen (big enough to not feel small, with room for the toolbar). The
+// original bug sized the video to the FULL height, so the widget grew taller than
+// its container and the toolbar overflowed off the bottom. correctToolbar() then
+// measures the real toolbar and trims the video further only if anything still
+// spills over — so even an unusually tall info-bar can't hide the controls.
+// Reserve space for the SDK's stacked info-bar + control toolbar; correct()
+// then grows the video to fill the remaining height with the toolbar still
+// on-screen. (Overlaying the bars on the video to remove this reserve made the
+// SDK's auto-sizing unstable, so we keep them in normal flow.)
+const SDK_CHROME_BASELINE = 132
 
 // Convergence tuning for the bidirectional toolbar loop (see correctToolbar).
 // TARGET_GAP: desired px between the toolbar's bottom and the container's bottom
@@ -60,11 +61,7 @@ export function useZoomSDK(
   rootRef: React.RefObject<HTMLDivElement | null>,
   sessionId: string,
   user: User | null,
-  isInstructor: boolean,
 ) {
-  // Host reserves room for the (visible) control toolbar; view-only attendees
-  // don't, so their video fills more of the area.
-  const chromeReserve = isInstructor ? SDK_CHROME_HOST : SDK_CHROME_VIEWER
   const clientRef = useRef<EmbeddedClient | null>(null)
   const resizeObsRef = useRef<ResizeObserver | null>(null)
   const resizeListenerRef = useRef<(() => void) | null>(null)
@@ -130,7 +127,7 @@ export function useZoomSDK(
       // can't start taller than the area), so the toolbar isn't hidden before
       // settle()/correct() take over.
       const initH = Math.max(
-        window.innerHeight - HEADER_H - chromeReserve,
+        window.innerHeight - HEADER_H - SDK_CHROME_BASELINE,
         240,
       )
       const initialSize = {
@@ -152,7 +149,9 @@ export function useZoomSDK(
         if (known) return known
         // This SDK build renders the controls as a MUI bar with only hashed class
         // names, so locate it by SHAPE: a control button near the bottom, then
-        // climb to the wide, short bar that holds it.
+        // climb to the wide, short bar that holds it. This only MEASURES the bar
+        // (so correct() can grow the video to fill the slack above it) — it never
+        // hides or moves it, so it can't affect audio/video join.
         const box = (r.parentElement ?? r).getBoundingClientRect()
         const btn = Array.from(r.querySelectorAll<HTMLElement>('button')).find(
           (b) => {
@@ -167,16 +166,6 @@ export function useZoomSDK(
           bar = bar.parentElement
         }
         return null
-      }
-
-      // Attendees are view-only — hide the control bar the SDK rendered. The CSS
-      // rule in globals.css covers builds that expose #wc-footer; this covers the
-      // MUI build whose bar has only hashed class names. Re-applied through the
-      // settle burst because the SDK re-renders the bar.
-      const hideControlsIfViewer = () => {
-        if (isInstructor) return
-        const bar = findToolbar()
-        if (bar && bar.style.display !== 'none') bar.style.display = 'none'
       }
 
       // Pre-join capability probe (read-only). checkSystemRequirements() returns
@@ -292,23 +281,29 @@ export function useZoomSDK(
         const widget = findWidget()
         if (!widget) return
         const cRect = container.getBoundingClientRect()
+        if (cRect.width === 0) return
+        // Measure with NO transform so the position + stretch ratio are correct.
+        widget.style.transform = 'none'
         const wRect = widget.getBoundingClientRect()
-        if (wRect.width < 100 || cRect.width === 0) return
+        const naturalW = widget.offsetWidth
+        if (naturalW < 100) return
         const curLeft = parseFloat(widget.style.left) || 0
         const curTop = parseFloat(widget.style.top) || 0
-        const desiredX = Math.max((cRect.width - wRect.width) / 2, 0)
+        const desiredX = Math.max((cRect.width - naturalW) / 2, 0)
         const desiredY = Math.max((cRect.height - wRect.height) / 2, 0)
         const nl = Math.round(curLeft + (desiredX - (wRect.left - cRect.left)))
         const nt = Math.round(curTop + (desiredY - (wRect.top - cRect.top)))
         widget.style.right = 'auto'
         widget.style.bottom = 'auto'
-        widget.style.transform = 'none'
-        if (Math.abs(nl - curLeft) > 1 || !widget.style.left) {
-          widget.style.left = nl + 'px'
-        }
-        if (Math.abs(nt - curTop) > 1 || !widget.style.top) {
-          widget.style.top = nt + 'px'
-        }
+        widget.style.left = nl + 'px'
+        widget.style.top = nt + 'px'
+        // STRETCH horizontally to fill the full width — removes the side bars.
+        // The 16:9 feed gets widened, so the presenter looks a bit stretched:
+        // the deliberate "fill, no black bars" trade-off. Vertical is untouched,
+        // and a CSS transform keeps the controls in the DOM + clickable.
+        const ratio = Math.max(cRect.width / naturalW, 1)
+        widget.style.transformOrigin = 'center top'
+        widget.style.transform = `scaleX(${ratio})`
       }
 
       const apply = () => {
@@ -318,7 +313,7 @@ export function useZoomSDK(
           rect.height > 0 ? rect.height : window.innerHeight - HEADER_H,
           320,
         )
-        const availH = Math.max(ch - chromeReserve, MIN_VIDEO_H)
+        const availH = Math.max(ch - SDK_CHROME_BASELINE, MIN_VIDEO_H)
         if (curW <= 0) curW = Math.min(cw, Math.round((availH * 16) / 9))
         curW = Math.max(Math.min(curW, cw), 320)
         const sz = { width: curW, height: availH }
@@ -328,7 +323,6 @@ export function useZoomSDK(
           /* not ready yet */
         }
         center()
-        hideControlsIfViewer()
       }
 
       // Measure the REAL toolbar and steer curW so its bottom sits a small
@@ -365,7 +359,7 @@ export function useZoomSDK(
           rect.height > 0 ? rect.height : window.innerHeight - HEADER_H,
           320,
         )
-        const availH = Math.max(ch - chromeReserve, MIN_VIDEO_H)
+        const availH = Math.max(ch - SDK_CHROME_BASELINE, MIN_VIDEO_H)
         const cw = Math.max(rect.width > 0 ? rect.width : window.innerWidth, 320)
         curW = Math.min(cw, Math.round((availH * 16) / 9))
         apply()
@@ -378,7 +372,6 @@ export function useZoomSDK(
           window.setTimeout(() => {
             correct()
             center()
-            hideControlsIfViewer()
           }, ms),
         )
       }
@@ -436,7 +429,7 @@ export function useZoomSDK(
       setErrorMsg(msg || 'Failed to join the meeting — check the console (F12).')
       setStatus('error')
     }
-  }, [rootRef, sessionId, user, isInstructor, refreshAttendees])
+  }, [rootRef, sessionId, user, refreshAttendees])
 
   const leaveMeeting = useCallback(async () => {
     settleTimersRef.current.forEach(clearTimeout)

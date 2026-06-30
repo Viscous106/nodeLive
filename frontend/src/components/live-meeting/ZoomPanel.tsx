@@ -11,8 +11,6 @@ interface Props {
   onJoin: () => void
   hasZoomMeeting?: boolean
   canStart?: boolean
-  /** Host/instructor keeps the Zoom control toolbar; attendees are view-only. */
-  isInstructor?: boolean
 }
 
 export function ZoomPanel({
@@ -22,14 +20,9 @@ export function ZoomPanel({
   onJoin,
   hasZoomMeeting = true,
   canStart = false,
-  isInstructor = false,
 }: Props) {
   return (
-    <div
-      className={`relative flex-1 overflow-hidden bg-black${
-        isInstructor ? '' : ' zoom-viewonly'
-      }`}
-    >
+    <div className="relative flex-1 overflow-hidden bg-black">
       <div ref={rootRef} id="zoomAppRoot" className="h-full w-full" />
 
       {status !== 'in-meeting' && (
