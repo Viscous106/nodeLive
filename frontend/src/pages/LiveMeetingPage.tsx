@@ -16,7 +16,9 @@ import { useSession } from '@/hooks/useSession'
 import { useSocket } from '@/hooks/useSocket'
 import { useSocketEvents } from '@/hooks/useSocketEvents'
 import { useZoomSDK } from '@/hooks/useZoomSDK'
+import { api } from '@/lib/api'
 import { useLiveClassStore } from '@/stores/liveClassStore'
+import { toast } from '@/stores/toastStore'
 
 export default function LiveMeetingPage() {
   const { sessionId = '' } = useParams()
@@ -31,6 +33,7 @@ export default function LiveMeetingPage() {
   useSocketEvents(sessionId)
 
   const [confirmingLeave, setConfirmingLeave] = useState(false)
+  const [ending, setEnding] = useState(false)
   // Open the side panel (Chat tab) by default so the AI chat / class tools are
   // visible on entry; the hamburger in the top bar still toggles it.
   const [showPanel, setShowPanel] = useState(true)
@@ -44,6 +47,7 @@ export default function LiveMeetingPage() {
   const reset = useLiveClassStore((s) => s.reset)
   const tick = useLiveClassStore((s) => s.tick)
   const activeQuestion = useLiveClassStore((s) => s.activeQuestion)
+  const sessionEnded = useLiveClassStore((s) => s.sessionEnded)
 
   // Cosmetic per-second countdown; re-synced by each quiz:next-question event.
   useEffect(() => {
@@ -59,11 +63,36 @@ export default function LiveMeetingPage() {
     user && (user.role !== 'STUDENT' || session?.hostId === user.id),
   )
 
-  const confirmLeave = async () => {
+  // Leave the Zoom call but keep the session LIVE (host can rejoin; students
+  // are simply leaving). This is the only action for students.
+  const justLeave = async () => {
     setConfirmingLeave(false)
     await leaveMeeting()
     navigate('/dashboard')
   }
+
+  // Host ends the class for everyone: flip the session to ENDED server-side.
+  // On success the backend broadcasts `session:ended`, which the effect below
+  // turns into leave + navigate (for the host AND every other participant).
+  const endClass = async () => {
+    setEnding(true)
+    try {
+      await api.post(`/api/sessions/${sessionId}/live/end`)
+    } catch {
+      toast({ variant: 'error', title: 'Could not end the class — try again' })
+      setEnding(false)
+    }
+  }
+
+  // When the session is ended (by this host or another instructor), drop out of
+  // the meeting and return to the dashboard.
+  useEffect(() => {
+    if (!sessionEnded) return
+    void (async () => {
+      await leaveMeeting()
+      navigate('/dashboard')
+    })()
+  }, [sessionEnded, leaveMeeting, navigate])
 
   if (isLoading) return <PageLoader />
 
@@ -130,14 +159,28 @@ export default function LiveMeetingPage() {
         )}
       </div>
       <NoticeOverlay />
-      <ConfirmDialog
-        open={confirmingLeave}
-        title="Leave the class?"
-        description="You can rejoin while the session is live."
-        confirmLabel="Leave"
-        onConfirm={confirmLeave}
-        onCancel={() => setConfirmingLeave(false)}
-      />
+      {isInstructor ? (
+        <ConfirmDialog
+          open={confirmingLeave}
+          title="End the class?"
+          description="Ending stops the class for everyone and records attendance. You can also just leave and rejoin while it stays live."
+          confirmLabel={ending ? 'Ending…' : 'End for everyone'}
+          confirmDisabled={ending}
+          onConfirm={endClass}
+          secondaryLabel="Just leave"
+          onSecondary={justLeave}
+          onCancel={() => setConfirmingLeave(false)}
+        />
+      ) : (
+        <ConfirmDialog
+          open={confirmingLeave}
+          title="Leave the class?"
+          description="You can rejoin while the session is live."
+          confirmLabel="Leave"
+          onConfirm={justLeave}
+          onCancel={() => setConfirmingLeave(false)}
+        />
+      )}
     </div>
   )
 }
