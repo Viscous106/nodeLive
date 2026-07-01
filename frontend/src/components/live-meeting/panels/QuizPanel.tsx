@@ -44,17 +44,17 @@ export function QuizPanel({ sessionId, isInstructor }: Props) {
 
   return (
     <div className="space-y-3 p-4">
-      <div className="flex justify-between text-xs text-white/60">
+      <div className="flex justify-between text-xs text-gray-600">
         <span>Question {question.index + 1}</span>
         <span>{timeLeft}s</span>
       </div>
-      <p className="font-semibold break-words text-white">{question.text}</p>
+      <p className="font-semibold break-words text-gray-900">{question.text}</p>
       {question.options.map((opt, i) => (
         <button
           key={i}
           onClick={() => answer(i)}
           disabled={answered}
-          className="w-full break-words rounded-lg bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+          className="w-full break-words rounded-lg bg-gray-50 p-3 text-left text-sm text-gray-900 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
         >
           {opt}
         </button>
@@ -67,7 +67,7 @@ export function QuizPanel({ sessionId, isInstructor }: Props) {
         </p>
       )}
       {answered && !lastScore && (
-        <p className="text-sm text-white/60">Answer submitted…</p>
+        <p className="text-sm text-gray-600">Answer submitted…</p>
       )}
     </div>
   )
@@ -139,9 +139,9 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
 
   if (quiz && quiz.status === 'LIVE') {
     return (
-      <div className="p-4 text-sm text-white/80">
-        <p className="font-semibold text-white">{quiz.title}</p>
-        <p className="mt-2 text-white/60">
+      <div className="p-4 text-sm text-gray-700">
+        <p className="font-semibold text-gray-900">{quiz.title}</p>
+        <p className="mt-2 text-gray-600">
           Quiz is live — questions rotate every {quiz.timeLimitSecs}s.
         </p>
       </div>
@@ -150,22 +150,22 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="space-y-3 p-4">
-      <p className="text-sm font-semibold text-white">Build a quiz</p>
+      <p className="text-sm font-semibold text-gray-900">Build a quiz</p>
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Quiz title"
         aria-label="Quiz title"
-        className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       />
       {questions.map((q, qi) => (
-        <div key={qi} className="space-y-2 rounded-lg bg-white/5 p-2">
+        <div key={qi} className="space-y-2 rounded-lg bg-gray-50 p-2">
           <input
             value={q.text}
             onChange={(e) => update(qi, { text: e.target.value })}
             placeholder={`Question ${qi + 1}`}
             aria-label={`Question ${qi + 1}`}
-            className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           {q.options.map((opt, oi) => (
             <label key={oi} className="flex items-center gap-2">
@@ -183,7 +183,7 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
                 }
                 placeholder={`Option ${oi + 1}`}
                 aria-label={`Question ${qi + 1} option ${oi + 1}`}
-                className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               />
             </label>
           ))}
@@ -191,7 +191,7 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
             onClick={() =>
               update(qi, { options: [...q.options, ''] })
             }
-            className="rounded text-xs text-primary-light hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="rounded text-xs text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             + option
           </button>
@@ -217,7 +217,7 @@ function InstructorQuiz({ sessionId }: { sessionId: string }) {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/50">
+    <div className="flex h-full items-center justify-center p-6 text-center text-sm text-gray-500">
       {children}
     </div>
   )

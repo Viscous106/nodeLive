@@ -17,14 +17,14 @@ export function RaiseHandQueue({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="space-y-2 border-t border-white/10 p-3">
-      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-white/50">
+    <div className="space-y-2 border-t border-gray-200 p-3">
+      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
         <Hand size={12} /> Raised hands ({raisedHands.length})
       </p>
       {raisedHands.map((h) => (
         <div
           key={h.userId}
-          className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-1.5 text-sm text-white/80"
+          className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-1.5 text-sm text-gray-700"
         >
           <span className="min-w-0 truncate">{h.name ?? h.userId}</span>
           <Button

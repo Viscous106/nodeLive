@@ -41,16 +41,16 @@ export function NotesPanel({ sessionId, isInstructor }: Props) {
   return (
     <div className="space-y-3 p-4">
       {isInstructor && (
-        <div className="space-y-2 rounded-lg bg-white/5 p-3">
+        <div className="space-y-2 rounded-lg bg-gray-50 p-3">
           <input
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Push a notice…"
             aria-label="Notice text to push to the class"
-            className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-xs text-white/70">
+            <label className="flex items-center gap-2 text-xs text-gray-600">
               <input
                 type="checkbox"
                 checked={critical}
@@ -65,16 +65,16 @@ export function NotesPanel({ sessionId, isInstructor }: Props) {
         </div>
       )}
 
-      <p className="text-xs font-medium uppercase tracking-wide text-white/40">
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
         Notices
       </p>
       {notices.length === 0 ? (
-        <p className="pt-4 text-center text-sm text-white/50">No notices yet.</p>
+        <p className="pt-4 text-center text-sm text-gray-500">No notices yet.</p>
       ) : (
         notices.map((n) => (
           <div
             key={n.id}
-            className="rounded-lg bg-white/5 px-3 py-2 text-sm text-white/80 break-words"
+            className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700 break-words"
           >
             {n.priority === 'CRITICAL' && (
               <span className="mr-1 text-danger">●</span>
@@ -84,7 +84,7 @@ export function NotesPanel({ sessionId, isInstructor }: Props) {
         ))
       )}
 
-      <p className="pt-2 text-xs text-white/30">
+      <p className="pt-2 text-xs text-gray-400">
         Lecture notes &amp; recordings appear here after class.
       </p>
     </div>

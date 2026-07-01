@@ -99,7 +99,7 @@ export default function LiveMeetingPage() {
   if (session && session.status !== 'LIVE' && !isInstructor) {
     const ended = session.status === 'ENDED' || session.status === 'CANCELLED'
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#1A1A2E] text-white">
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#15181D] text-white">
         {!ended && <Spinner className="h-10 w-10 text-white" />}
         <div className="text-center">
           <p className="text-lg font-semibold">
@@ -130,7 +130,7 @@ export default function LiveMeetingPage() {
   // edge tracks the VISIBLE viewport — otherwise the Zoom control toolbar lands
   // behind the browser's address/nav bar. On desktop 100dvh == 100vh.
   return (
-    <div className="fixed inset-x-0 top-0 flex h-[100dvh] flex-col bg-black">
+    <div className="fixed inset-x-0 top-0 flex h-[100dvh] flex-col bg-[#15181D]">
       <LiveMeetingTopBar
         session={session}
         onLeave={() => setConfirmingLeave(true)}

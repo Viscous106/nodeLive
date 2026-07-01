@@ -8,9 +8,9 @@ export function LeaderboardPanel({ userId }: { userId: string | undefined }) {
 
   return (
     <div className="space-y-2 p-4">
-      <p className="text-sm text-white/60">Your score: {myScore}</p>
+      <p className="text-sm text-gray-600">Your score: {myScore}</p>
       {leaderboard.length === 0 ? (
-        <p className="pt-4 text-center text-sm text-white/50">
+        <p className="pt-4 text-center text-sm text-gray-500">
           No points yet — answer a quiz or poll.
         </p>
       ) : (
@@ -18,7 +18,7 @@ export function LeaderboardPanel({ userId }: { userId: string | undefined }) {
           <div
             key={row.userId}
             className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
-              row.userId === userId ? 'bg-primary/20 text-white' : 'bg-white/5 text-white/80'
+              row.userId === userId ? 'bg-primary/20 text-gray-900' : 'bg-gray-50 text-gray-700'
             }`}
           >
             <span className="flex min-w-0 items-center gap-2">

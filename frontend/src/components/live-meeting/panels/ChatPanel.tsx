@@ -23,7 +23,7 @@ export function ChatPanel({ sessionId, user, isInstructor }: Props) {
   return (
     <div className="flex h-full flex-col">
       {pinnedMessage && (
-        <div className="flex items-start gap-2 border-b border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+        <div className="flex items-start gap-2 border-b border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800">
           <Pin size={14} className="mt-0.5 shrink-0" />
           <span className="min-w-0 break-words">{pinnedMessage}</span>
         </div>
@@ -57,13 +57,13 @@ function AiChat({ sessionId }: { sessionId: string }) {
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm">
         {!response && !isStreaming ? (
-          <p className="flex items-center gap-2 text-white/40">
+          <p className="flex items-center gap-2 text-gray-400">
             <Sparkles size={14} /> Ask the AI about this lecture — it uses the
             live transcript for context.
           </p>
         ) : (
-          <div className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-white/90">
-            <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary-light">
+          <div className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-gray-800">
+            <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary">
               <Sparkles size={12} /> AI assistant
             </p>
             <p className="whitespace-pre-wrap">
@@ -73,7 +73,7 @@ function AiChat({ sessionId }: { sessionId: string }) {
           </div>
         )}
       </div>
-      <div className="flex gap-2 border-t border-white/10 p-3">
+      <div className="flex gap-2 border-t border-gray-200 p-3">
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
@@ -81,7 +81,7 @@ function AiChat({ sessionId }: { sessionId: string }) {
           placeholder="Ask the AI…"
           aria-label="Ask the AI a question about this lecture"
           disabled={isStreaming}
-          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
         />
         <Button size="sm" onClick={ask} disabled={isStreaming}>
           Ask
@@ -117,7 +117,7 @@ function StudentRaiseHand({
   }
 
   return (
-    <div className="border-t border-white/10 p-3">
+    <div className="border-t border-gray-200 p-3">
       <Button
         variant={raised ? 'danger' : 'outline'}
         size="sm"
@@ -181,14 +181,14 @@ function InstructorChatControls({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="space-y-2 border-t border-white/10 p-3">
+    <div className="space-y-2 border-t border-gray-200 p-3">
       <div className="flex gap-2">
         <input
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="Pin a message…"
           aria-label="Pin a message for everyone"
-          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="min-w-0 flex-1 rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
         <Button size="sm" onClick={setPinned} disabled={pinPending}>
           Pin
@@ -203,7 +203,7 @@ function InstructorChatControls({ sessionId }: { sessionId: string }) {
           onChange={(e) => setCue(e.target.value)}
           placeholder="Show a cue card…"
           aria-label="Show a cue card over the video"
-          className="min-w-0 flex-1 rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="min-w-0 flex-1 rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
         <Button size="sm" onClick={showCue} disabled={cuePending}>
           Show

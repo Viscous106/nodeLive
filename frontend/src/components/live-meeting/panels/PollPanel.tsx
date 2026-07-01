@@ -47,16 +47,16 @@ export function PollPanel({ sessionId, isInstructor }: Props) {
 
   return (
     <div className="space-y-3 p-4">
-      <p className="font-semibold break-words text-white">{poll.question}</p>
+      <p className="font-semibold break-words text-gray-900">{poll.question}</p>
       {poll.options.map((opt, i) => {
         const r = results.find((x) => x.optionIndex === i)
         return showResults ? (
-          <div key={i} className="rounded-lg bg-white/5 p-2">
-            <div className="mb-1 flex justify-between gap-2 text-sm text-white/80">
+          <div key={i} className="rounded-lg bg-gray-50 p-2">
+            <div className="mb-1 flex justify-between gap-2 text-sm text-gray-700">
               <span className="min-w-0 truncate">{opt}</span>
               <span className="shrink-0">{r?.pct ?? 0}%</span>
             </div>
-            <div className="h-2 overflow-hidden rounded bg-white/10">
+            <div className="h-2 overflow-hidden rounded bg-gray-200">
               <div
                 className="h-full bg-primary"
                 style={{ width: `${r?.pct ?? 0}%` }}
@@ -68,14 +68,14 @@ export function PollPanel({ sessionId, isInstructor }: Props) {
             key={i}
             onClick={() => vote(i)}
             disabled={poll.status === 'CLOSED'}
-            className="w-full break-words rounded-lg bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+            className="w-full break-words rounded-lg bg-gray-50 p-3 text-left text-sm text-gray-900 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
           >
             {opt}
           </button>
         )
       })}
       {showResults && (
-        <p className="text-xs text-white/50">{total} responses</p>
+        <p className="text-xs text-gray-500">{total} responses</p>
       )}
     </div>
   )
@@ -124,11 +124,11 @@ function InstructorPoll({ sessionId }: { sessionId: string }) {
   if (poll && poll.status === 'OPEN') {
     return (
       <div className="space-y-3 p-4">
-        <p className="font-semibold break-words text-white">{poll.question}</p>
+        <p className="font-semibold break-words text-gray-900">{poll.question}</p>
         {poll.options.map((opt, i) => {
           const r = results.find((x) => x.optionIndex === i)
           return (
-            <div key={i} className="rounded-lg bg-white/5 p-2 text-sm text-white/80">
+            <div key={i} className="rounded-lg bg-gray-50 p-2 text-sm text-gray-700">
               <div className="flex justify-between gap-2">
                 <span className="min-w-0 truncate">{opt}</span>
                 <span className="shrink-0">
@@ -147,13 +147,13 @@ function InstructorPoll({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="space-y-3 p-4">
-      <p className="text-sm font-semibold text-white">Launch a poll</p>
+      <p className="text-sm font-semibold text-gray-900">Launch a poll</p>
       <input
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
         placeholder="Question"
         aria-label="Poll question"
-        className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       />
       {options.map((opt, i) => (
         <input
@@ -164,7 +164,7 @@ function InstructorPoll({ sessionId }: { sessionId: string }) {
           }
           placeholder={`Option ${i + 1}`}
           aria-label={`Poll option ${i + 1}`}
-          className="w-full rounded-md bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
       ))}
       <div className="flex gap-2">
@@ -185,7 +185,7 @@ function InstructorPoll({ sessionId }: { sessionId: string }) {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/50">
+    <div className="flex h-full items-center justify-center p-6 text-center text-sm text-gray-500">
       {children}
     </div>
   )

@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Target,
   Trophy,
+  X,
 } from 'lucide-react'
 
 import { ChatPanel } from '@/components/live-meeting/panels/ChatPanel'
@@ -24,8 +25,8 @@ const TABS: { id: TabId; icon: typeof MessageSquare; label: string }[] = [
   { id: 'chat', icon: MessageSquare, label: 'Chat' },
   { id: 'quiz', icon: Target, label: 'Quiz' },
   { id: 'poll', icon: BarChart3, label: 'Poll' },
-  { id: 'leaderboard', icon: Trophy, label: 'Board' },
-  { id: 'bookmarks', icon: Bookmark, label: 'Marks' },
+  { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
+  { id: 'bookmarks', icon: Bookmark, label: 'Bookmarks' },
   { id: 'notes', icon: FileText, label: 'Notes' },
 ]
 
@@ -36,49 +37,93 @@ interface Props {
   joinedAt: number
 }
 
+// Vertical tool rail (right edge) + a light content panel that opens to its
+// left. Clicking a tool opens its panel; clicking the active tool again (or the
+// ✕) collapses to just the rail so the video reclaims the space. Chat is open
+// on entry. Only the nav layout + theme changed here — every panel's logic is
+// untouched (they were recoloured to the light theme in their own files).
 export function FeaturePanel({ sessionId, user, isInstructor, joinedAt }: Props) {
   const [tab, setTab] = useState<TabId>('chat')
+  const [open, setOpen] = useState(true)
+
+  const activeLabel = TABS.find((t) => t.id === tab)?.label ?? ''
+
+  const selectTab = (id: TabId) => {
+    // Re-tapping the open tool collapses the panel; anything else opens it.
+    if (id === tab && open) {
+      setOpen(false)
+      return
+    }
+    setTab(id)
+    setOpen(true)
+  }
 
   return (
-    <aside className="flex w-[360px] shrink-0 flex-col bg-[#1A1A2E] text-white">
-      <nav role="tablist" aria-label="Class tools" className="flex border-b border-white/10">
-        {TABS.map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={cn(
-              'flex flex-1 flex-col items-center gap-1 border-b-2 py-2 text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40',
-              tab === id
-                ? 'border-primary-light text-primary-light'
-                : 'border-transparent text-white/50 hover:text-white/80',
-            )}
-          >
-            <Icon size={18} />
-            {label}
-          </button>
-        ))}
-      </nav>
+    <aside className="flex shrink-0">
+      {open && (
+        <section className="relative z-10 flex w-[300px] flex-col bg-white text-gray-900 shadow-[-8px_0_24px_-10px_rgba(0,0,0,0.55)]">
+          <header className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+            <h2 className="text-base font-semibold">{activeLabel}</h2>
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Close panel"
+              className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <X size={16} />
+            </button>
+          </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'chat' && (
-          <ChatPanel sessionId={sessionId} user={user} isInstructor={isInstructor} />
-        )}
-        {tab === 'quiz' && (
-          <QuizPanel sessionId={sessionId} isInstructor={isInstructor} />
-        )}
-        {tab === 'poll' && (
-          <PollPanel sessionId={sessionId} isInstructor={isInstructor} />
-        )}
-        {tab === 'leaderboard' && <LeaderboardPanel userId={user?.id} />}
-        {tab === 'bookmarks' && (
-          <BookmarkPanel sessionId={sessionId} joinedAt={joinedAt} />
-        )}
-        {tab === 'notes' && (
-          <NotesPanel sessionId={sessionId} isInstructor={isInstructor} />
-        )}
-      </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {tab === 'chat' && (
+              <ChatPanel
+                sessionId={sessionId}
+                user={user}
+                isInstructor={isInstructor}
+              />
+            )}
+            {tab === 'quiz' && (
+              <QuizPanel sessionId={sessionId} isInstructor={isInstructor} />
+            )}
+            {tab === 'poll' && (
+              <PollPanel sessionId={sessionId} isInstructor={isInstructor} />
+            )}
+            {tab === 'leaderboard' && <LeaderboardPanel userId={user?.id} />}
+            {tab === 'bookmarks' && (
+              <BookmarkPanel sessionId={sessionId} joinedAt={joinedAt} />
+            )}
+            {tab === 'notes' && (
+              <NotesPanel sessionId={sessionId} isInstructor={isInstructor} />
+            )}
+          </div>
+        </section>
+      )}
+
+      <nav
+        role="tablist"
+        aria-label="Class tools"
+        className="flex w-[72px] shrink-0 flex-col gap-1 border-l border-white/[0.07] bg-[#1E2127] p-2"
+      >
+        {TABS.map(({ id, icon: Icon, label }) => {
+          const active = tab === id && open
+          return (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={active}
+              onClick={() => selectTab(id)}
+              className={cn(
+                'flex flex-col items-center gap-1 rounded-lg px-1 py-2.5 text-[11px] leading-tight transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40',
+                active
+                  ? 'bg-[#2A2E36] text-[#60A5FA]'
+                  : 'text-gray-400 hover:bg-white/[0.05] hover:text-white',
+              )}
+            >
+              <Icon size={18} />
+              <span className="text-center">{label}</span>
+            </button>
+          )
+        })}
+      </nav>
     </aside>
   )
 }

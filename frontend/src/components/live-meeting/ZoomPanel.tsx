@@ -22,11 +22,11 @@ export function ZoomPanel({
   canStart = false,
 }: Props) {
   return (
-    <div className="relative flex-1 overflow-hidden bg-black">
+    <div className="relative flex-1 overflow-hidden bg-[#15181D]">
       <div ref={rootRef} id="zoomAppRoot" className="h-full w-full" />
 
       {status !== 'in-meeting' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black p-6 text-center text-white">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#15181D] p-6 text-center text-white">
           {!hasZoomMeeting && !canStart ? (
             <div className="flex max-w-md flex-col items-center gap-3">
               <Video size={36} className="text-white/50" />

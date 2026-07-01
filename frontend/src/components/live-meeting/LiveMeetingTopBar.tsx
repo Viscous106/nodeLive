@@ -15,7 +15,7 @@ export function LiveMeetingTopBar({ session, onLeave, showPanel, onTogglePanel }
   const attendeeCount = useLiveClassStore((s) => s.attendeeCount)
 
   return (
-    <header className="relative z-10 flex h-12 shrink-0 items-center justify-between bg-[#1A1A2E] px-4 text-white">
+    <header className="relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-white/[0.07] bg-[#1E2127] px-4 text-white">
       <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={onLeave}
