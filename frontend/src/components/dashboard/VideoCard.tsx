@@ -9,10 +9,14 @@ import type { ClassSession } from '@/types'
 function useWatchStatus(sessionId: string) {
   return useQuery({
     queryKey: ['recording', sessionId, 'watch-status'],
-    queryFn: () =>
-      api.get<{ available: boolean; percentComplete: number }>(
+    // The backend serializes snake_case and percent_complete as a 0..1 fraction
+    // (the player page multiplies by 100 too), so map it at the edge.
+    queryFn: async () => {
+      const r = await api.get<{ available: boolean; percent_complete: number | null }>(
         `/api/sessions/${sessionId}/recording/watch-status`,
-      ),
+      )
+      return { available: r.available, percentComplete: (r.percent_complete ?? 0) * 100 }
+    },
     retry: (count, err) =>
       !(err instanceof ApiError && err.status === 401) && count < 1,
     staleTime: 60_000,
@@ -27,7 +31,7 @@ export function VideoCard({ session }: { session: ClassSession }) {
     year: 'numeric',
   })
   const { data: ws } = useWatchStatus(session.id)
-  const pct = ws?.available ? Math.round(ws.percentComplete) : null
+  const pct = ws?.available ? Math.min(100, Math.round(ws.percentComplete)) : null
 
   return (
     <Link
